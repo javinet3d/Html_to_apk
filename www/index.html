@@ -1,79 +1,2230 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Mi App Web Android</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #12161f;
-      color: #f0f4f8;
-      margin: 0;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      box-sizing: border-box;
-      text-align: center;
-    }
-    .card {
-      background: #1c2230;
-      border-radius: 16px;
-      padding: 24px;
-      max-width: 420px;
-      width: 100%;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-    }
-    h1 { font-size: 1.4rem; margin-top: 0; color: #60a5fa; }
-    p { font-size: 0.95rem; color: #cbd5e1; line-height: 1.5; }
-    button {
-      background: #2563eb;
-      color: white;
-      border: none;
-      padding: 12px 18px;
-      border-radius: 10px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      width: 100%;
-      margin-top: 10px;
-    }
-    button:active { background: #1d4ed8; }
-    #status { margin-top: 14px; font-size: 0.85rem; color: #34d399; word-break: break-word; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>App Lista en Android</h1>
-    <p>Sustituye este archivo <code>www/index.html</code> por tu propia aplicación HTML de archivo único.</p>
-    <button onclick="testMic()">Probar Permiso de Micrófono</button>
-    <button onclick="testDownload()">Probar Descarga de Archivo (.txt)</button>
-    <div id="status"></div>
-  </div>
-  <script>
-    async function testMic() {
-      const st = document.getElementById('status');
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(t => t.stop());
-        st.textContent = "Micrófono autorizado y funcionando.";
-      } catch (e) {
-        st.textContent = "Error micrófono: " + e.message;
-      }
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparamapas - Comparador y Medidor de Mapas</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230A0F1D'/%3E%3Cpath d='M8 10l6-3v15l-6 3V10zm8 3l6-3v15l-6 3V13z' fill='%2300E5FF'/%3E%3C/svg%3E">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-    function testDownload() {
-      const blob = new Blob(["Prueba de exportación desde APK"], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "prueba_android.txt";
-      a.click();
-      document.getElementById('status').textContent = "Descarga iniciada en carpeta Descargas.";
-    }
-  </script>
+    <!-- Leaflet Rotate Plugin (Soporte nativo de rotación de vista / rumbo / Norte con coordenadas exactas) -->
+    <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
+
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Estilos personalizados para marcadores y controles de Leaflet */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0f172a;
+        }
+
+        .leaflet-container {
+            background-color: #0f172a;
+            font-family: 'Inter', sans-serif;
+            transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+            transform-origin: center center;
+        }
+
+        /* Personalización de controles de zoom de Leaflet */
+        .leaflet-control-zoom {
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            border-radius: 0.75rem !important;
+            overflow: hidden;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        .leaflet-control-zoom a {
+            background-color: rgba(15, 23, 42, 0.88) !important;
+            backdrop-filter: blur(8px);
+            color: #f8fafc !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+            width: 34px !important;
+            height: 34px !important;
+            line-height: 34px !important;
+            font-size: 15px !important;
+            transition: all 0.15s ease;
+        }
+
+        .leaflet-control-zoom a:hover {
+            background-color: rgba(59, 130, 246, 0.9) !important;
+            color: #ffffff !important;
+        }
+
+        /* Etiquetas de segmentos de distancia sobre el mapa */
+        .segment-tooltip {
+            background: rgba(15, 23, 42, 0.92) !important;
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(244, 63, 94, 0.6) !important;
+            color: #f8fafc !important;
+            font-family: 'JetBrains Mono', monospace !important;
+            font-size: 11px !important;
+            font-weight: 600 !important;
+            padding: 2px 6px !important;
+            border-radius: 6px !important;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3) !important;
+            white-space: nowrap;
+        }
+
+        .segment-tooltip::before {
+            display: none !important;
+        }
+
+        /* Cursor en modo medición */
+        .measuring-cursor .leaflet-container {
+            cursor: crosshair !important;
+        }
+
+        /* Animación sutil para el punto de medición */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(2.2); opacity: 0; }
+        }
+        .measure-dot-pulse::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 2px solid #f43f5e;
+            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+        /* Ocultar el control de brújula por defecto de leaflet-rotate */
+        .leaflet-control-rotate {
+            display: none !important;
+        }
+
+        /* Estilo de barra deslizante de rotación */
+        input[type=range].bearing-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type=range].bearing-slider::-webkit-slider-runnable-track {
+            height: 5px;
+            border-radius: 999px;
+            background: rgba(51, 65, 85, 0.9);
+        }
+        input[type=range].bearing-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #00E5FF;
+            border: 2px solid #ffffff;
+            margin-top: -4.5px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+        }
+
+        /* Ocultar elementos UI en modo limpio */
+        .map-ui-hidden .leaflet-control-zoom,
+        .map-ui-hidden .leaflet-control-scale {
+            display: none !important;
+        }
+
+        /* Estilo de slider de opacidad para la ventana superpuesta */
+        input[type=range].opacity-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type=range].opacity-slider::-webkit-slider-runnable-track {
+            height: 6px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(59,130,246,0.6) 0%, rgba(16,185,129,0.9) 100%);
+        }
+        input[type=range].opacity-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid #00E5FF;
+            margin-top: -4.5px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+        }
+
+        /* Desactivar controles internos dentro de los mini-mapas de superposición */
+        #overlayMiniWindow .leaflet-control-container {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen flex flex-col font-sans select-none">
+
+    <!-- BARRA SUPERIOR DE CONTROL GLOBAL (ADAPTABLE EN MÚLTIPLES LÍNEAS EN MÓVIL / PANTALLAS ESTRECHAS) -->
+    <header class="min-h-[3.25rem] py-1.5 px-2.5 sm:px-4 bg-slate-900/95 backdrop-blur-xl border-b border-slate-800 flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 shrink-0 z-[1000] shadow-lg">
+        <!-- Logo Oficial Comparamapas y Accesos Rápidos -->
+        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            <div class="flex items-center gap-2 mr-1">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" class="w-8 h-8 rounded-lg shadow-md shadow-cyan-500/10 border border-slate-700/80 shrink-0">
+                    <rect width="32" height="32" rx="8" fill="#0A0F1D"/>
+                    <path d="M8 10l6-3v15l-6 3V10zm8 3l6-3v15l-6 3V13z" fill="#00E5FF"/>
+                </svg>
+                <h1 class="font-bold text-sm sm:text-base tracking-tight text-slate-100">Compara<span class="text-[#00E5FF]">mapas</span></h1>
+            </div>
+
+            <!-- Badge indicador si es ventana secundaria -->
+            <span id="windowRoleBadge" class="hidden px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-semibold">Ventana 2</span>
+            
+            <!-- Botón Centrar en Madrid / Leganés -->
+            <button id="btnResetCenter" class="px-2 py-1 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] font-semibold transition flex items-center gap-1.5" title="Centrar ambos mapas en Leganés / Madrid">
+                <i class="fa-solid fa-house-chimney text-blue-400"></i>
+                <span>Madrid</span>
+            </button>
+
+            <!-- Botón Demostración Directa de Groenlandia (Mercator vs Tamaño Real) -->
+            <button id="btnGreenlandDemo" class="px-2.5 py-1 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 text-[11px] font-semibold transition flex items-center gap-1.5 shadow-sm" title="Ver comparativa de Groenlandia: Mercator (gigante) vs Tamaño Real (escala real sin distorsión)">
+                <i class="fa-solid fa-earth-americas text-emerald-400"></i>
+                <span>Ver Groenlandia Real</span>
+            </button>
+        </div>
+
+        <!-- Controles Centrales: Sincronización, Proyección/Escala Real, Giro, División y Medición -->
+        <div class="flex flex-wrap items-center gap-1.5">
+            <!-- Toggle Zoom Sincronizado (Activo por defecto) -->
+            <button id="btnSyncZoom" class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-blue-600/20 border-blue-500/50 text-blue-300 shadow-sm" title="Sincronizar el nivel de zoom entre ambos mapas">
+                <i id="iconSyncZoom" class="fa-solid fa-magnifying-glass-plus text-blue-400"></i>
+                <span>Zoom Sincr.</span>
+                <span id="dotSyncZoom" class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
+            </button>
+
+            <!-- Toggle Posición/Movimiento Relativo Sincronizado -->
+            <button id="btnSyncPan" class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-slate-800/90 border-slate-700 text-slate-300 hover:bg-slate-750" title="Activar/Desactivar movimiento sincronizado conservando las posiciones actuales de cada mapa">
+                <i class="fa-solid fa-arrows-up-down-left-right text-slate-400"></i>
+                <span>Posición</span>
+                <span id="dotSyncPan" class="w-2 h-2 rounded-full bg-slate-600"></span>
+            </button>
+
+            <!-- Selector Global de Modo de Escala / Proyección -->
+            <div class="relative">
+                <button id="btnGlobalProjectionMenu" class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25" title="Configurar cómo se corrige la distorsión de tamaño por latitud">
+                    <i class="fa-solid fa-scale-balanced text-amber-400"></i>
+                    <span id="globalProjectionLabel">Mercator vs Tamaño Real</span>
+                    <i class="fa-solid fa-chevron-down text-[9px] text-amber-300"></i>
+                </button>
+                <div id="globalProjectionDropdown" class="hidden absolute left-0 sm:left-auto sm:right-0 mt-1.5 w-72 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[1100] divide-y divide-slate-800">
+                    <div class="p-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-950/60">Modos de Escala y Proyección</div>
+                    <button data-preset="compare_real" class="proj-option-btn w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 transition flex items-center justify-between bg-slate-800/60">
+                        <div>
+                            <div class="font-semibold text-emerald-300">Mapa 1: Mercator | Mapa 2: Tamaño Real</div>
+                            <div class="text-[10px] text-slate-400">Compara la distorsión de Groenlandia frente a su escala métrica real</div>
+                        </div>
+                        <i class="fa-solid fa-check text-emerald-400"></i>
+                    </button>
+                    <button data-preset="both_real" class="proj-option-btn w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 transition flex items-center justify-between">
+                        <div>
+                            <div class="font-semibold text-cyan-300">Ambos en Tamaño Real (cos lat)</div>
+                            <div class="text-[10px] text-slate-400">Compara dos países a distintos paralelos con idéntica escala en km</div>
+                        </div>
+                        <i class="fa-solid fa-check text-cyan-400 hidden"></i>
+                    </button>
+                    <button data-preset="compare_gall" class="proj-option-btn w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 transition flex items-center justify-between">
+                        <div>
+                            <div class="font-semibold text-amber-300">Mapa 1: Mercator | Mapa 2: Gall-Peters</div>
+                            <div class="text-[10px] text-slate-400">Compresión cilíndrica de área equivalente + escala real</div>
+                        </div>
+                        <i class="fa-solid fa-check text-amber-400 hidden"></i>
+                    </button>
+                    <button data-preset="both_mercator" class="proj-option-btn w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 transition flex items-center justify-between">
+                        <div>
+                            <div class="font-semibold text-slate-300">Ambos en Mercator Estándar</div>
+                            <div class="text-[10px] text-slate-400">Sin corrección de latitud (Google Maps clásico)</div>
+                        </div>
+                        <i class="fa-solid fa-check text-slate-400 hidden"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Toggle Giro / Norte Sincronizado -->
+            <button id="btnSyncBearing" class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-slate-800/90 border-slate-700 text-slate-300 hover:bg-slate-750" title="Sincronizar el ángulo de rotación (Norte) entre ambos mapas">
+                <i class="fa-regular fa-compass text-amber-400"></i>
+                <span>Giro</span>
+                <span id="dotSyncBearing" class="w-2 h-2 rounded-full bg-slate-600"></span>
+            </button>
+
+            <!-- Botón de igualar vistas inmediatamente -->
+            <button id="btnAlignNow" class="px-2 py-1 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] transition flex items-center gap-1" title="Igualar centro, zoom y rotación del Mapa 2 con el Mapa 1 ahora mismo">
+                <i class="fa-solid fa-clone text-cyan-400"></i>
+                <span class="hidden xl:inline">Igualar</span>
+            </button>
+
+            <!-- Botón Alternar División Vertical / Horizontal -->
+            <button id="btnToggleSplitLayout" class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[11px] font-semibold transition" title="Cambiar entre división Lado a Lado (Vertical) o Arriba y Abajo (Horizontal)">
+                <i id="iconSplitLayout" class="fa-solid fa-table-columns text-cyan-400"></i>
+                <span id="textSplitLayout">Lado a Lado</span>
+            </button>
+
+            <!-- Botón Modo Medidor de Distancia -->
+            <button id="btnMeasureMode" class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-slate-800/90 border-slate-700 text-slate-200 hover:border-rose-500/50" title="Activar o desactivar medidor de distancia independiente en cada mapa">
+                <i class="fa-solid fa-ruler-combined text-rose-400"></i>
+                <span>Medir</span>
+                <span id="badgeMeasurePoints" class="hidden px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] font-mono">0</span>
+            </button>
+
+            <!-- Botón Mini Ventana Superpuesta con Transparencia (Overlay Comparativo) -->
+            <button id="btnToggleOverlayWindow" class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-slate-800/90 border-slate-700 text-cyan-300 hover:border-cyan-500/50" title="Abrir mini ventana inferior central con ambos mapas superpuestos y transparencia ajustable">
+                <i class="fa-solid fa-layer-group text-[#00E5FF]"></i>
+                <span>Superponer</span>
+                <span id="dotOverlayActive" class="w-2 h-2 rounded-full bg-slate-600"></span>
+            </button>
+
+            <!-- Botón Global Modo Limpio -->
+            <button id="btnToggleAllCleanMode" class="px-2 py-1 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[11px] transition" title="Mostrar u ocultar todos los paneles flotantes en ambos mapas">
+                <i id="iconAllCleanMode" class="fa-solid fa-eye-slash"></i>
+            </button>
+
+            <!-- Nivel de Zoom Base en vivo -->
+            <div class="hidden xl:flex items-center gap-1 bg-slate-950/90 border border-slate-800 px-2 py-1 rounded-xl">
+                <span class="text-[9px] uppercase tracking-wider text-slate-400 font-semibold">Zoom</span>
+                <span id="zoomLevelDisplay" class="font-mono text-[11px] font-bold text-amber-400">14.0</span>
+            </div>
+
+            <!-- Botón para desacoplar en 2ª ventana emergente real -->
+            <button id="btnPopupWindow" class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 transition cursor-pointer" title="Abrir el Mapa 2 en una ventana separada del navegador sincronizada en tiempo real">
+                <i class="fa-solid fa-up-right-from-square"></i>
+                <span id="popupBtnText">2ª Ventana</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENEDOR PRINCIPAL DE LOS DOS MAPAS -->
+    <main id="mapsGridContainer" class="flex-1 flex flex-row relative overflow-hidden bg-slate-950">
+        
+        <!-- ==================== PANEL MAPA 1 (IZQUIERDO / SUPERIOR) ==================== -->
+        <section id="panelMap1" class="relative flex-1 w-full h-full border-r border-slate-800 transition-all duration-300 overflow-hidden bg-slate-950">
+            <!-- Contenedor Leaflet 1 -->
+            <div id="map1" class="w-full h-full z-10"></div>
+
+            <!-- Botón Discreto Permanente en Mapa 1 para Ocultar/Mostrar Controles (Modo Limpio) -->
+            <button id="btnCleanMap1" title="Ocultar/Mostrar controles del Mapa 1 (Modo Limpio)" class="absolute top-2.5 left-2.5 z-[650] w-8 h-8 rounded-xl bg-slate-900/90 hover:bg-slate-800 backdrop-blur-md border border-slate-700/80 text-slate-200 hover:text-white shadow-xl flex items-center justify-center transition pointer-events-auto">
+                <i id="iconCleanMap1" class="fa-solid fa-eye-slash text-xs text-blue-400"></i>
+            </button>
+
+            <!-- Tarjeta Flotante Superior Adaptable: Identificador + Selector de Escala/Proyección + Capas + Buscador Mapa 1 -->
+            <div id="uiTopOverlay1" class="absolute top-2.5 left-12 right-12 z-[500] flex flex-col gap-1.5 max-w-xl pointer-events-none transition-opacity duration-200">
+                <div class="flex flex-wrap items-center gap-1 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 p-1.5 rounded-xl shadow-xl pointer-events-auto w-fit max-w-full">
+                    <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                        <span class="text-[11px] font-bold text-blue-200 tracking-wide">MAPA 1</span>
+                    </div>
+
+                    <!-- Selector de Escala / Proyección Individual para Mapa 1 -->
+                    <select id="projSelect1" class="bg-slate-950/90 border border-slate-700 text-slate-200 text-[11px] rounded-lg px-2 py-1 font-medium focus:outline-none focus:border-blue-500 transition cursor-pointer" title="Modo de proyección y escala del Mapa 1">
+                        <option value="mercator" selected>Mercator (Estándar)</option>
+                        <option value="true_size">Tamaño Real (Escala cos lat)</option>
+                        <option value="gall_peters">Gall-Peters (Área Equivalente)</option>
+                    </select>
+
+                    <!-- Botones de selección de capa (Google Maps) -->
+                    <div class="flex flex-wrap items-center bg-slate-950/80 p-0.5 rounded-lg border border-slate-800" data-map-target="1">
+                        <button data-layer="streets" class="layer-btn-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition bg-blue-600 text-white shadow">
+                            Calles
+                        </button>
+                        <button data-layer="satellite" class="layer-btn-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition text-slate-400 hover:text-white">
+                            Satélite
+                        </button>
+                        <button data-layer="hybrid" class="layer-btn-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition text-slate-400 hover:text-white">
+                            Híbrido
+                        </button>
+                        <button data-layer="terrain" class="layer-btn-1 px-2 py-0.5 rounded-md text-[11px] font-medium transition text-slate-400 hover:text-white">
+                            Terreno
+                        </button>
+                    </div>
+
+                    <!-- Botón rápido de medición en Mapa 1 -->
+                    <button id="btnLocalMeasure1" class="px-2 py-0.5 rounded-lg bg-slate-950/90 hover:bg-rose-600/30 border border-slate-700 text-slate-300 hover:text-rose-200 text-[11px] font-medium transition flex items-center gap-1" title="Activar/Desactivar medición en Mapa 1">
+                        <i class="fa-solid fa-ruler text-rose-400 text-[10px]"></i>
+                        <span id="localMeasureBadge1" class="font-mono text-[10px]">Medir</span>
+                    </button>
+                </div>
+
+                <!-- Buscador Independiente Mapa 1 -->
+                <div class="relative w-full max-w-sm pointer-events-auto">
+                    <form id="searchForm1" class="flex items-center bg-slate-900/95 backdrop-blur-md border border-slate-700/90 focus-within:border-blue-500 rounded-xl shadow-xl overflow-hidden transition">
+                        <span class="pl-2.5 pr-1.5 text-blue-400 text-xs">
+                            <i id="searchIcon1" class="fa-solid fa-magnifying-glass"></i>
+                        </span>
+                        <input
+                            id="searchInput1"
+                            type="text"
+                            autocomplete="off"
+                            placeholder="Buscar lugar, país o coords en Mapa 1..."
+                            class="w-full bg-transparent py-1.5 pr-2 text-xs text-slate-100 placeholder-slate-400 focus:outline-none"
+                        />
+                        <button
+                            type="button"
+                            id="btnClearSearch1"
+                            title="Limpiar búsqueda y marcador"
+                            class="hidden px-2 py-1 text-slate-400 hover:text-rose-400 text-xs transition"
+                        >
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                        <button
+                            type="submit"
+                            class="px-2.5 py-1.5 bg-blue-600/80 hover:bg-blue-500 text-white text-xs font-semibold transition border-l border-slate-700/80"
+                        >
+                            Ir
+                        </button>
+                    </form>
+
+                    <!-- Desplegable de resultados Mapa 1 -->
+                    <div id="searchResults1" class="hidden absolute left-0 right-0 mt-1 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto divide-y divide-slate-800/80 z-[600]"></div>
+                </div>
+            </div>
+
+            <!-- Control Flotante de Brújula y Rotación de Norte (Mapa 1) -->
+            <div id="uiCompassOverlay1" class="absolute top-28 right-2.5 z-[500] flex flex-col items-end gap-1.5 pointer-events-auto transition-opacity duration-200">
+                <div class="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-1.5 shadow-xl flex flex-col items-center gap-1">
+                    <button id="btnResetNorth1" title="Clic para restablecer el Norte a 0° (o arrastra el mapa con clic derecho)" class="relative w-9 h-9 rounded-lg bg-slate-950/90 hover:bg-slate-800 border border-slate-800 flex items-center justify-center transition group">
+                        <span class="absolute top-0.5 text-[8px] font-bold text-rose-400 tracking-tighter">N</span>
+                        <div id="compassNeedle1" class="w-5 h-5 flex items-center justify-center transition-transform duration-75" style="transform: rotate(0deg);">
+                            <svg viewBox="0 0 24 24" class="w-4 h-4">
+                                <polygon points="12,2 16,12 12,10 8,12" fill="#f43f5e"/>
+                                <polygon points="12,22 16,12 12,14 8,12" fill="#cbd5e1"/>
+                            </svg>
+                        </div>
+                    </button>
+                    <span id="bearingValue1" class="font-mono text-[10px] font-bold text-blue-300">0° N</span>
+                    <button id="btnToggleRotPanel1" title="Mostrar/ocultar controles de giro fino" class="text-[10px] text-slate-400 hover:text-white px-1.5 py-0.5 rounded bg-slate-800/80 w-full text-center transition">
+                        <i class="fa-solid fa-rotate"></i> Girar
+                    </button>
+                </div>
+
+                <!-- Panel desplegable de giro preciso Mapa 1 -->
+                <div id="rotPanel1" class="hidden bg-slate-900/95 backdrop-blur-md border border-slate-700/90 rounded-xl p-2.5 shadow-2xl w-48 flex flex-col gap-2">
+                    <div class="flex items-center justify-between text-[11px] text-slate-300 font-medium">
+                        <span>Orientación Norte</span>
+                        <button data-map="1" data-angle="0" class="quick-rot-btn text-[10px] text-blue-400 hover:underline font-mono">Reset 0°</button>
+                    </div>
+                    <input id="bearingSlider1" type="range" min="0" max="359" value="0" class="bearing-slider w-full" />
+                    <div class="grid grid-cols-4 gap-1">
+                        <button data-map="1" data-delta="-45" class="delta-rot-btn px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-200 border border-slate-700">-45°</button>
+                        <button data-map="1" data-delta="-15" class="delta-rot-btn px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-200 border border-slate-700">-15°</button>
+                        <button data-map="1" data-delta="15" class="delta-rot-btn px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-200 border border-slate-700">+15°</button>
+                        <button data-map="1" data-delta="45" class="delta-rot-btn px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-200 border border-slate-700">+45°</button>
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-tight">
+                        <i class="fa-solid fa-computer-mouse text-blue-400 mr-1"></i>Usa <strong>Clic derecho + arrastrar</strong> para girar el Norte.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Barra inferior de coordenadas e indicador de distorsión del Mapa 1 -->
+            <div id="uiCoordsOverlay1" class="absolute bottom-2.5 left-2.5 z-[500] pointer-events-none hidden sm:flex flex-wrap items-center gap-2 bg-slate-900/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-slate-800 text-[11px] font-mono text-slate-300 shadow">
+                <i class="fa-solid fa-compass text-blue-400"></i>
+                <span id="coordsMap1">40.3280, -3.7645</span>
+                <span id="scaleBadgeMap1" class="px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px]">Mercator ×1.31</span>
+            </div>
+
+            <!-- Tarjeta Flotante de Medición Independiente - MAPA 1 -->
+            <div id="measureCard1" class="hidden absolute bottom-11 left-2.5 z-[550] bg-slate-900/95 backdrop-blur-xl border border-blue-500/40 rounded-xl p-2.5 shadow-2xl w-64 pointer-events-auto">
+                <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-1.5">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-blue-300">Medida Mapa 1</span>
+                        <span id="measureCount1" class="text-[10px] font-mono text-slate-400">(0 pts)</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button id="btnUndoMeasure1" title="Deshacer último punto en Mapa 1" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] disabled:opacity-40" disabled>
+                            <i class="fa-solid fa-rotate-left"></i>
+                        </button>
+                        <button id="btnClearMeasure1" title="Limpiar medición de Mapa 1" class="px-1.5 py-0.5 rounded bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white text-[10px] transition">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-1.5 flex items-baseline justify-between">
+                    <span id="distPrimary1" class="font-mono text-base font-bold text-white">0.00 m</span>
+                    <span id="distSecondary1" class="font-mono text-[10px] text-slate-400">(0.000 km)</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== PANEL MAPA 2 (DERECHO / INFERIOR) ==================== -->
+        <section id="panelMap2" class="relative flex-1 w-full h-full transition-all duration-300 overflow-hidden bg-slate-950">
+            <!-- Contenedor Leaflet 2 -->
+            <div id="map2" class="w-full h-full z-10"></div>
+
+            <!-- Botón Discreto Permanente en Mapa 2 para Ocultar/Mostrar Controles (Modo Limpio) -->
+            <button id="btnCleanMap2" title="Ocultar/Mostrar controles del Mapa 2 (Modo Limpio)" class="absolute top-2.5 left-2.5 z-[650] w-8 h-8 rounded-xl bg-slate-900/90 hover:bg-slate-800 backdrop-blur-md border border-slate-700/80 text-slate-200 hover:text-white shadow-xl flex items-center justify-center transition pointer-events-auto">
+                <i id="iconCleanMap2" class="fa-solid fa-eye-slash text-xs text-emerald-400"></i>
+            </button>
+
+            <!-- Tarjeta Flotante Superior Adaptable: Identificador + Selector de Escala/Proyección + Capas + Buscador Mapa 2 -->
+            <div id="uiTopOverlay2" class="absolute top-2.5 left-12 right-12 z-[500] flex flex-col gap-1.5 max-w-xl pointer-events-none transition-opacity duration-200">
+                <div class="flex flex-wrap items-center gap-1 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 p-1.5 rounded-xl shadow-xl pointer-events-auto w-fit max-w-full">
+                    <div class="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span class="text-[11px] font-bold text-emerald-200 tracking-wide">MAPA 2</span>
+                    </div>
+
+                    <!-- Selector de Escala / Proyección Individual para Mapa 2 -->
+                    <select id="projSelect2" class="bg-slate-950/90 border border-slate-700 text-emerald-300 text-[11px] rounded-lg px-2 py-1 font-semibold focus:outline-none focus:border-emerald-500 transition cursor-pointer" title="Modo de proyección y escala del Mapa 2">
+                        <option value="mercator">Mercator (Estándar)</option>
+                        <option value="true_size" selected>Tamaño Real (Escala cos lat)</option>
+                        <option value="gall_peters">Gall-Peters (Área Equivalente)</option>
+                    </select>
+
+                    <!-- Botones de selección de capa (Google Maps) -->
+                    <div class="flex flex-wrap items-center bg-slate-950/80 p-0.5 rounded-lg border border-slate-800" data-map-target="2">
+                        <button data-layer="streets" class="layer-btn-2 px-2 py-0.5 rounded-md text-[11px] font-medium transition text-slate-400 hover:text-white">
+                            Calles
+                        </button>
+                        <button data-layer="satellite" class="layer-btn-2 px-2 py-0.5 rounded-md text-[11px] font-medium transition text-slate-400 hover:text-white">
+                            Satélite
+                        </button>
+                        <button data-layer="hybrid" class="layer-btn-2 px-2 py-0.5 rounded-md text-[11px] font-medium transition bg-emerald-600 text-white shadow">
+                            Híbrido
+                        </button>
+                        <button data-layer="terrain" class="layer-btn-2 px-2 py-0.5 rounded-md text-[11px] font-medium transition text-slate-400 hover:text-white">
+                            Terreno
+                        </button>
+                    </div>
+
+                    <!-- Botón rápido de medición en Mapa 2 -->
+                    <button id="btnLocalMeasure2" class="px-2 py-0.5 rounded-lg bg-slate-950/90 hover:bg-rose-600/30 border border-slate-700 text-slate-300 hover:text-rose-200 text-[11px] font-medium transition flex items-center gap-1" title="Activar/Desactivar medición en Mapa 2">
+                        <i class="fa-solid fa-ruler text-rose-400 text-[10px]"></i>
+                        <span id="localMeasureBadge2" class="font-mono text-[10px]">Medir</span>
+                    </button>
+                </div>
+
+                <!-- Buscador Independiente Mapa 2 -->
+                <div class="relative w-full max-w-sm pointer-events-auto">
+                    <form id="searchForm2" class="flex items-center bg-slate-900/95 backdrop-blur-md border border-slate-700/90 focus-within:border-emerald-500 rounded-xl shadow-xl overflow-hidden transition">
+                        <span class="pl-2.5 pr-1.5 text-emerald-400 text-xs">
+                            <i id="searchIcon2" class="fa-solid fa-magnifying-glass"></i>
+                        </span>
+                        <input
+                            id="searchInput2"
+                            type="text"
+                            autocomplete="off"
+                            placeholder="Buscar lugar, país o coords en Mapa 2..."
+                            class="w-full bg-transparent py-1.5 pr-2 text-xs text-slate-100 placeholder-slate-400 focus:outline-none"
+                        />
+                        <button
+                            type="button"
+                            id="btnClearSearch2"
+                            title="Limpiar búsqueda y marcador"
+                            class="hidden px-2 py-1 text-slate-400 hover:text-rose-400 text-xs transition"
+                        >
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                        <button
+                            type="submit"
+                            class="px-2.5 py-1.5 bg-emerald-600/80 hover:bg-emerald-500 text-white text-xs font-semibold transition border-l border-slate-700/80"
+                        >
+                            Ir
+                        </button>
+                    </form>
+
+                    <!-- Desplegable de resultados Mapa 2 -->
+                    <div id="searchResults2" class="hidden absolute left-0 right-0 mt-1 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto divide-y divide-slate-800/80 z-[600]"></div>
+                </div>
+            </div>
+
+            <!-- Control Flotante de Brújula y Rotación de Norte (Mapa 2) -->
+            <div id="uiCompassOverlay2" class="absolute top-28 right-2.5 z-[500] flex flex-col items-end gap-1.5 pointer-events-auto transition-opacity duration-200">
+                <div class="bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-1.5 shadow-xl flex flex-col items-center gap-1">
+                    <button id="btnResetNorth2" title="Clic para restablecer el Norte a 0° (o arrastra el mapa con clic derecho)" class="relative w-9 h-9 rounded-lg bg-slate-950/90 hover:bg-slate-800 border border-slate-800 flex items-center justify-center transition group">
+                        <span class="absolute top-0.5 text-[8px] font-bold text-rose-400 tracking-tighter">N</span>
+                        <div id="compassNeedle2" class="w-5 h-5 flex items-center justify-center transition-transform duration-75" style="transform: rotate(0deg);">
+                            <svg viewBox="0 0 24 24" class="w-4 h-4">
+                                <polygon points="12,2 16,12 12,10 8,12" fill="#f43f5e"/>
+                                <polygon points="12,22 16,12 12,14 8,12" fill="#cbd5e1"/>
+                            </svg>
+                        </div>
+                    </button>
+                    <span id="bearingValue2" class="font-mono text-[10px] font-bold text-emerald-300">0° N</span>
+                    <button id="btnToggleRotPanel2" title="Mostrar/ocultar controles de giro fino" class="text-[10px] text-slate-400 hover:text-white px-1.5 py-0.5 rounded bg-slate-800/80 w-full text-center transition">
+                        <i class="fa-solid fa-rotate"></i> Girar
+                    </button>
+                </div>
+
+                <!-- Panel desplegable de giro preciso Mapa 2 -->
+                <div id="rotPanel2" class="hidden bg-slate-900/95 backdrop-blur-md border border-slate-700/90 rounded-xl p-2.5 shadow-2xl w-48 flex flex-col gap-2">
+                    <div class="flex items-center justify-between text-[11px] text-slate-300 font-medium">
+                        <span>Orientación Norte</span>
+                        <button data-map="2" data-angle="0" class="quick-rot-btn text-[10px] text-emerald-400 hover:underline font-mono">Reset 0°</button>
+                    </div>
+                    <input id="bearingSlider2" type="range" min="0" max="359" value="0" class="bearing-slider w-full" />
+                    <div class="grid grid-cols-4 gap-1">
+                        <button data-map="2" data-delta="-45" class="delta-rot-btn px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-200 border border-slate-700">-45°</button>
+                        <button data-map="2" data-delta="-15" class="delta-rot-btn px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-200 border border-slate-700">-15°</button>
+                        <button data-map="2" data-delta="15" class="delta-rot-btn px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-200 border border-slate-700">+15°</button>
+                        <button data-map="2" data-delta="45" class="delta-rot-btn px-1.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[10px] font-mono text-slate-200 border border-slate-700">+45°</button>
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-tight">
+                        <i class="fa-solid fa-computer-mouse text-emerald-400 mr-1"></i>Usa <strong>Clic derecho + arrastrar</strong> para girar el Norte.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Barra inferior de coordenadas e indicador de escala real del Mapa 2 -->
+            <div id="uiCoordsOverlay2" class="absolute bottom-2.5 left-2.5 z-[500] pointer-events-none hidden sm:flex flex-wrap items-center gap-2 bg-slate-900/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-slate-800 text-[11px] font-mono text-slate-300 shadow">
+                <i class="fa-solid fa-compass text-emerald-400"></i>
+                <span id="coordsMap2">40.3280, -3.7645</span>
+                <span id="scaleBadgeMap2" class="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px]">Escala Real (1:1)</span>
+            </div>
+
+            <!-- Tarjeta Flotante de Medición Independiente - MAPA 2 -->
+            <div id="measureCard2" class="hidden absolute bottom-11 left-2.5 z-[550] bg-slate-900/95 backdrop-blur-xl border border-emerald-500/40 rounded-xl p-2.5 shadow-2xl w-64 pointer-events-auto">
+                <div class="flex items-center justify-between gap-2 border-b border-slate-800 pb-1.5">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-emerald-300">Medida Mapa 2</span>
+                        <span id="measureCount2" class="text-[10px] font-mono text-slate-400">(0 pts)</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button id="btnUndoMeasure2" title="Deshacer último punto en Mapa 2" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] disabled:opacity-40" disabled>
+                            <i class="fa-solid fa-rotate-left"></i>
+                        </button>
+                        <button id="btnClearMeasure2" title="Limpiar medición de Mapa 2" class="px-1.5 py-0.5 rounded bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white text-[10px] transition">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mt-1.5 flex items-baseline justify-between">
+                    <span id="distPrimary2" class="font-mono text-base font-bold text-white">0.00 m</span>
+                    <span id="distSecondary2" class="font-mono text-[10px] text-slate-400">(0.000 km)</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== MINI VENTANA FLOTANTE INFERIOR CENTRAL: SUPERPOSICIÓN TRANSPARENTE ==================== -->
+        <div id="overlayMiniWindow" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 z-[880] w-[92vw] sm:w-[430px] h-[255px] bg-slate-900/95 backdrop-blur-xl border border-cyan-500/40 rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-200">
+            <!-- Cabecera de la mini ventana superpuesta -->
+            <div class="px-3 py-1.5 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between gap-2 shrink-0">
+                <div class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-layer-group text-[#00E5FF] text-xs"></i>
+                    <span class="text-[11px] font-bold text-slate-100 tracking-wide">Superposición Comparativa</span>
+                    <span id="overlayOrderBadge" class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-cyan-300 border border-slate-700">M2 sobre M1</span>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button id="btnSwapOverlayOrder" title="Invertir qué mapa queda arriba" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10px] transition">
+                        <i class="fa-solid fa-arrow-right-arrow-left"></i>
+                    </button>
+                    <button id="btnExpandOverlayWindow" title="Ampliar / Reducir mini ventana" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10px] transition">
+                        <i id="iconExpandOverlay" class="fa-solid fa-up-right-and-down-left-from-center"></i>
+                    </button>
+                    <button id="btnCloseOverlayWindow" title="Cerrar superposición" class="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white text-[10px] transition">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Lienzo dual superpuesto en tiempo real -->
+            <div class="relative flex-1 w-full h-full overflow-hidden bg-slate-950">
+                <!-- Capa Base (Mapa 1) -->
+                <div id="overlayMap1" class="absolute inset-0 w-full h-full z-10 pointer-events-none"></div>
+                <!-- Capa Superior con Opacidad Seleccionable (Mapa 2) -->
+                <div id="overlayMap2" class="absolute inset-0 w-full h-full z-20 pointer-events-none transition-opacity duration-75" style="opacity: 0.55;"></div>
+
+                <!-- Etiquetas discretas en las esquinas -->
+                <div class="absolute top-2 left-2 z-30 pointer-events-none flex items-center gap-1.5">
+                    <span id="overlayTagBase" class="px-1.5 py-0.5 rounded bg-blue-950/85 border border-blue-500/40 text-[9px] font-semibold text-blue-200">Base: Mapa 1</span>
+                    <span id="overlayTagTop" class="px-1.5 py-0.5 rounded bg-emerald-950/85 border border-emerald-500/40 text-[9px] font-semibold text-emerald-200">Superior: Mapa 2</span>
+                </div>
+            </div>
+
+            <!-- Barra inferior de control de transparencia de la capa superior -->
+            <div class="px-3 py-2 bg-slate-950/95 border-t border-slate-800 flex items-center gap-2.5 shrink-0">
+                <span class="text-[10px] font-semibold text-slate-300 whitespace-nowrap">
+                    <i class="fa-solid fa-circle-half-stroke text-[#00E5FF] mr-1"></i>Opacidad:
+                </span>
+                <input id="overlayOpacitySlider" type="range" min="0" max="100" value="55" class="opacity-slider flex-1" />
+                <span id="overlayOpacityValue" class="font-mono text-[11px] font-bold text-[#00E5FF] w-9 text-right">55%</span>
+                <div class="flex items-center gap-1">
+                    <button data-opacity="0" class="preset-opacity-btn px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[9px] font-mono text-slate-300">0%</button>
+                    <button data-opacity="50" class="preset-opacity-btn px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[9px] font-mono text-slate-300">50%</button>
+                    <button data-opacity="100" class="preset-opacity-btn px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[9px] font-mono text-slate-300">100%</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== BARRA SUPERIOR DE AVISO DE MODO MEDICIÓN ==================== -->
+        <div id="measurementBanner" class="hidden absolute top-16 left-1/2 -translate-x-1/2 z-[890] bg-slate-900/95 backdrop-blur-xl border border-rose-500/50 rounded-full px-3.5 py-1.5 shadow-2xl flex items-center gap-3">
+            <span class="flex items-center gap-1.5 text-[11px] font-semibold text-rose-300">
+                <i class="fa-solid fa-ruler-combined text-rose-400"></i>
+                <span>Modo Medición Independiente: haz clic en cada mapa para medir por separado</span>
+            </span>
+            <button id="btnClearAllMeasures" class="px-2 py-0.5 rounded-full bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/40 text-[10px] font-semibold transition">
+                Limpiar Ambos
+            </button>
+            <button id="btnCloseMeasureDock" class="text-slate-400 hover:text-white text-xs px-1 transition" title="Salir del modo medición (ESC)">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Notificación Toast no intrusiva -->
+        <div id="toastNotification" class="pointer-events-none opacity-0 transition-all duration-300 transform translate-y-2 fixed top-20 left-1/2 -translate-x-1/2 z-[1200] bg-slate-900/95 border border-slate-700 text-slate-100 px-4 py-2 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-medium">
+            <i class="fa-solid fa-circle-info text-[#00E5FF]"></i>
+            <span id="toastMessage">Sincronización activa</span>
+        </div>
+    </main>
+
+    <script>
+        /**************************************************************************
+         * CONFIGURACIÓN INICIAL Y ESTADO DE COMPARAMAPAS
+         **************************************************************************/
+        const urlParams = new URLSearchParams(window.location.search);
+        const INITIAL_CENTER = [40.3280, -3.7645]; // Leganés / Madrid
+        const INITIAL_ZOOM = 13.5;
+
+        const state = {
+            baseZoom: INITIAL_ZOOM,     // Nivel de zoom ecuatorial de referencia
+            syncZoom: true,             // Zoom sincronizado activo por defecto
+            syncPan: false,             // Desplazamiento relativo sincronizado opcional
+            syncBearing: false,         // Sincronización de giro opcional
+            splitDirection: 'vertical', // 'vertical' | 'horizontal'
+            cleanMode: { 1: false, 2: false },
+            isMeasuring: false,
+            measurePoints1: [],         // Puntos de medición exclusivos del Mapa 1
+            measurePoints2: [],         // Puntos de medición exclusivos del Mapa 2
+            overlayActive: false,       // Mini ventana inferior de superposición
+            overlayExpanded: false,     // Tamaño normal vs ampliado de la mini ventana
+            overlaySwapped: false,      // false: M2 sobre M1 | true: M1 sobre M2
+            overlayOpacity: 55,         // Porcentaje 0..100
+            isProgrammaticMove: false,
+            externalPopupRef: null,
+            map1LayerType: 'streets',
+            map2LayerType: 'hybrid',
+            map1Proj: 'mercator',
+            map2Proj: 'true_size',
+            map1Bearing: 0,
+            map2Bearing: 0,
+            lastCenter1: { lat: INITIAL_CENTER[0], lng: INITIAL_CENTER[1] },
+            lastCenter2: { lat: INITIAL_CENTER[0], lng: INITIAL_CENTER[1] },
+            lastSearchResults: { 1: [], 2: [] }
+        };
+
+        const syncChannel = new BroadcastChannel('comparamapas_sync_v1');
+
+        /**************************************************************************
+         * FUNCIONES DE ESCALA REAL, PROYECCIÓN Y CREACIÓN DE MAPAS
+         **************************************************************************/
+        function computeEffectiveMapZoom(baseZoom, projKey, lat) {
+            if (projKey === 'true_size' || projKey === 'gall_peters') {
+                const rad = Math.max(-84, Math.min(84, lat)) * Math.PI / 180;
+                const cosLat = Math.max(0.12, Math.cos(rad));
+                return baseZoom + Math.log2(cosLat);
+            }
+            return baseZoom;
+        }
+
+        function computeBaseZoomFromEffective(effectiveZoom, projKey, lat) {
+            if (projKey === 'true_size' || projKey === 'gall_peters') {
+                const rad = Math.max(-84, Math.min(84, lat)) * Math.PI / 180;
+                const cosLat = Math.max(0.12, Math.cos(rad));
+                return effectiveZoom - Math.log2(cosLat);
+            }
+            return effectiveZoom;
+        }
+
+        function applyGallPetersAspectTransform(mapNum) {
+            const projKey = mapNum === 1 ? state.map1Proj : state.map2Proj;
+            const targetMap = mapNum === 1 ? map1 : map2;
+            const mapEl = document.getElementById(`map${mapNum}`);
+            if (!mapEl) return;
+
+            if (projKey === 'gall_peters') {
+                const lat = targetMap.getCenter().lat;
+                const rad = Math.max(-80, Math.min(80, lat)) * Math.PI / 180;
+                const scaleY = Math.max(0.45, Math.min(1.35, Math.cos(rad) * 1.15));
+                mapEl.style.transform = `scale(1, ${scaleY.toFixed(3)})`;
+            } else {
+                mapEl.style.transform = 'scale(1, 1)';
+            }
+        }
+
+        function updateScaleBadges() {
+            [1, 2].forEach(num => {
+                const m = num === 1 ? map1 : map2;
+                const proj = num === 1 ? state.map1Proj : state.map2Proj;
+                const badge = document.getElementById(`scaleBadgeMap${num}`);
+                if (!badge || !m) return;
+
+                const lat = m.getCenter().lat;
+                const rad = Math.max(-84, Math.min(84, lat)) * Math.PI / 180;
+                const mercatorExpansion = (1 / Math.max(0.12, Math.cos(rad))).toFixed(2);
+
+                if (proj === 'mercator') {
+                    badge.textContent = `Mercator ×${mercatorExpansion}`;
+                } else if (proj === 'true_size') {
+                    badge.textContent = 'Escala Real (1:1)';
+                } else {
+                    badge.textContent = 'Gall-Peters (Área Eq.)';
+                }
+            });
+        }
+
+        function createGoogleTileLayer(layerType) {
+            const lyrsMap = {
+                streets: 'm',
+                satellite: 's',
+                hybrid: 'y',
+                terrain: 'p'
+            };
+            const lyrCode = lyrsMap[layerType] || 'm';
+            return L.tileLayer(`https://mt1.google.com/vt/lyrs=${lyrCode}&x={x}&y={y}&z={z}&hl=es`, {
+                maxZoom: 21,
+                attribution: '&copy; Google Maps'
+            });
+        }
+
+        const map1 = L.map('map1', {
+            center: INITIAL_CENTER,
+            zoom: computeEffectiveMapZoom(INITIAL_ZOOM, state.map1Proj, INITIAL_CENTER[0]),
+            zoomSnap: 0,
+            zoomDelta: 0.5,
+            rotate: true,
+            bearing: 0
+        });
+
+        const map2 = L.map('map2', {
+            center: INITIAL_CENTER,
+            zoom: computeEffectiveMapZoom(INITIAL_ZOOM, state.map2Proj, INITIAL_CENTER[0]),
+            zoomSnap: 0,
+            zoomDelta: 0.5,
+            rotate: true,
+            bearing: 0
+        });
+
+        L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map1);
+        L.control.scale({ imperial: false, position: 'bottomright' }).addTo(map2);
+
+        let activeTileLayer1 = createGoogleTileLayer(state.map1LayerType).addTo(map1);
+        let activeTileLayer2 = createGoogleTileLayer(state.map2LayerType).addTo(map2);
+
+        const measureLayerGroup1 = L.layerGroup().addTo(map1);
+        const measureLayerGroup2 = L.layerGroup().addTo(map2);
+
+        /**************************************************************************
+         * MINI MAPAS DE SUPERPOSICIÓN (VENTANA INFERIOR CENTRAL CON TRANSPARENCIA)
+         **************************************************************************/
+        const overlayMap1 = L.map('overlayMap1', {
+            center: INITIAL_CENTER,
+            zoom: computeEffectiveMapZoom(INITIAL_ZOOM, state.map1Proj, INITIAL_CENTER[0]),
+            zoomControl: false,
+            attributionControl: false,
+            dragging: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            boxZoom: false,
+            keyboard: false,
+            zoomSnap: 0,
+            rotate: true,
+            bearing: 0
+        });
+
+        const overlayMap2 = L.map('overlayMap2', {
+            center: INITIAL_CENTER,
+            zoom: computeEffectiveMapZoom(INITIAL_ZOOM, state.map2Proj, INITIAL_CENTER[0]),
+            zoomControl: false,
+            attributionControl: false,
+            dragging: false,
+            scrollWheelZoom: false,
+            doubleClickZoom: false,
+            boxZoom: false,
+            keyboard: false,
+            zoomSnap: 0,
+            rotate: true,
+            bearing: 0
+        });
+
+        let overlayTileLayer1 = createGoogleTileLayer(state.map1LayerType).addTo(overlayMap1);
+        let overlayTileLayer2 = createGoogleTileLayer(state.map2LayerType).addTo(overlayMap2);
+
+        function syncOverlayMaps() {
+            if (!state.overlayActive) return;
+
+            const c1 = map1.getCenter();
+            const z1 = map1.getZoom();
+            overlayMap1.setView(c1, z1, { animate: false });
+            if (typeof overlayMap1.setBearing === 'function') {
+                overlayMap1.setBearing(state.map1Bearing);
+            }
+
+            const c2 = map2.getCenter();
+            const z2 = map2.getZoom();
+            overlayMap2.setView(c2, z2, { animate: false });
+            if (typeof overlayMap2.setBearing === 'function') {
+                overlayMap2.setBearing(state.map2Bearing);
+            }
+
+            // Replicar también transformación Gall-Peters si estuviera activa
+            const el1 = document.getElementById('overlayMap1');
+            const el2 = document.getElementById('overlayMap2');
+            if (el1) el1.style.transform = document.getElementById('map1').style.transform || 'scale(1, 1)';
+            if (el2) el2.style.transform = document.getElementById('map2').style.transform || 'scale(1, 1)';
+        }
+
+        function updateOverlayLayerStackAndOpacity() {
+            const el1 = document.getElementById('overlayMap1');
+            const el2 = document.getElementById('overlayMap2');
+            const orderBadge = document.getElementById('overlayOrderBadge');
+            const tagBase = document.getElementById('overlayTagBase');
+            const tagTop = document.getElementById('overlayTagTop');
+            const op = state.overlayOpacity / 100;
+
+            if (!state.overlaySwapped) {
+                // Mapa 2 arriba con transparencia; Mapa 1 abajo opaco
+                el1.style.zIndex = '10';
+                el1.style.opacity = '1';
+                el2.style.zIndex = '20';
+                el2.style.opacity = String(op);
+                orderBadge.textContent = 'M2 sobre M1';
+                tagBase.textContent = 'Base: Mapa 1';
+                tagBase.className = 'px-1.5 py-0.5 rounded bg-blue-950/85 border border-blue-500/40 text-[9px] font-semibold text-blue-200';
+                tagTop.textContent = 'Superior: Mapa 2';
+                tagTop.className = 'px-1.5 py-0.5 rounded bg-emerald-950/85 border border-emerald-500/40 text-[9px] font-semibold text-emerald-200';
+            } else {
+                // Mapa 1 arriba con transparencia; Mapa 2 abajo opaco
+                el2.style.zIndex = '10';
+                el2.style.opacity = '1';
+                el1.style.zIndex = '20';
+                el1.style.opacity = String(op);
+                orderBadge.textContent = 'M1 sobre M2';
+                tagBase.textContent = 'Base: Mapa 2';
+                tagBase.className = 'px-1.5 py-0.5 rounded bg-emerald-950/85 border border-emerald-500/40 text-[9px] font-semibold text-emerald-200';
+                tagTop.textContent = 'Superior: Mapa 1';
+                tagTop.className = 'px-1.5 py-0.5 rounded bg-blue-950/85 border border-blue-500/40 text-[9px] font-semibold text-blue-200';
+            }
+        }
+
+        function toggleOverlayWindow(forceState) {
+            state.overlayActive = typeof forceState === 'boolean' ? forceState : !state.overlayActive;
+            const win = document.getElementById('overlayMiniWindow');
+            const btn = document.getElementById('btnToggleOverlayWindow');
+            const dot = document.getElementById('dotOverlayActive');
+
+            if (state.overlayActive) {
+                win.classList.remove('hidden');
+                btn.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-cyan-500/20 border-cyan-400/60 text-cyan-200 shadow-sm';
+                dot.className = 'w-2 h-2 rounded-full bg-[#00E5FF] shadow-[0_0_8px_#00E5FF]';
+                updateOverlayLayerStackAndOpacity();
+                setTimeout(() => {
+                    overlayMap1.invalidateSize();
+                    overlayMap2.invalidateSize();
+                    syncOverlayMaps();
+                }, 40);
+                showToast('Superposición activada: desliza la opacidad para comparar tamaños');
+            } else {
+                win.classList.add('hidden');
+                btn.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-slate-800/90 border-slate-700 text-cyan-300 hover:border-cyan-500/50';
+                dot.className = 'w-2 h-2 rounded-full bg-slate-600';
+            }
+        }
+
+        document.getElementById('btnToggleOverlayWindow').addEventListener('click', () => toggleOverlayWindow());
+        document.getElementById('btnCloseOverlayWindow').addEventListener('click', () => toggleOverlayWindow(false));
+
+        document.getElementById('btnSwapOverlayOrder').addEventListener('click', () => {
+            state.overlaySwapped = !state.overlaySwapped;
+            updateOverlayLayerStackAndOpacity();
+        });
+
+        document.getElementById('btnExpandOverlayWindow').addEventListener('click', () => {
+            state.overlayExpanded = !state.overlayExpanded;
+            const win = document.getElementById('overlayMiniWindow');
+            const icon = document.getElementById('iconExpandOverlay');
+            if (state.overlayExpanded) {
+                win.classList.remove('sm:w-[430px]', 'h-[255px]');
+                win.classList.add('sm:w-[640px]', 'h-[390px]');
+                icon.className = 'fa-solid fa-down-left-and-up-right-to-center';
+            } else {
+                win.classList.remove('sm:w-[640px]', 'h-[390px]');
+                win.classList.add('sm:w-[430px]', 'h-[255px]');
+                icon.className = 'fa-solid fa-up-right-and-down-left-from-center';
+            }
+            setTimeout(() => {
+                overlayMap1.invalidateSize();
+                overlayMap2.invalidateSize();
+                syncOverlayMaps();
+            }, 220);
+        });
+
+        const overlayOpacitySlider = document.getElementById('overlayOpacitySlider');
+        const overlayOpacityValue = document.getElementById('overlayOpacityValue');
+
+        overlayOpacitySlider.addEventListener('input', (e) => {
+            state.overlayOpacity = parseInt(e.target.value, 10);
+            overlayOpacityValue.textContent = `${state.overlayOpacity}%`;
+            updateOverlayLayerStackAndOpacity();
+        });
+
+        document.querySelectorAll('.preset-opacity-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                state.overlayOpacity = parseInt(btn.dataset.opacity, 10);
+                overlayOpacitySlider.value = state.overlayOpacity;
+                overlayOpacityValue.textContent = `${state.overlayOpacity}%`;
+                updateOverlayLayerStackAndOpacity();
+            });
+        });
+
+        let searchMarker1 = null;
+        let searchMarker2 = null;
+
+        updateScaleBadges();
+
+        /**************************************************************************
+         * CAMBIO DE MODO DE ESCALA / PROYECCIÓN (MERCATOR, TAMAÑO REAL, GALL-PETERS)
+         **************************************************************************/
+        function setMapProjection(mapNum, projKey, broadcast = true) {
+            const targetMap = mapNum === 1 ? map1 : map2;
+            if (mapNum === 1) state.map1Proj = projKey;
+            else state.map2Proj = projKey;
+
+            const selectEl = document.getElementById(`projSelect${mapNum}`);
+            if (selectEl && selectEl.value !== projKey) selectEl.value = projKey;
+
+            // Recalcular el zoom efectivo para ese mapa según su latitud actual y state.baseZoom
+            state.isProgrammaticMove = true;
+            const c = targetMap.getCenter();
+            const newEffectiveZoom = computeEffectiveMapZoom(state.baseZoom, projKey, c.lat);
+            targetMap.setView(c, newEffectiveZoom, { animate: true });
+            applyGallPetersAspectTransform(mapNum);
+            updateScaleBadges();
+
+            setTimeout(() => {
+                state.isProgrammaticMove = false;
+                syncOverlayMaps();
+            }, 250);
+
+            if (broadcast) {
+                syncChannel.postMessage({
+                    type: 'PROJECTION_CHANGE',
+                    mapNum,
+                    projKey
+                });
+            }
+
+            const modeLabels = {
+                mercator: 'Mercator (Estándar)',
+                true_size: 'Tamaño Real (Escala cos lat)',
+                gall_peters: 'Gall-Peters (Área Equivalente)'
+            };
+            showToast(`Mapa ${mapNum}: ${modeLabels[projKey] || projKey}`);
+        }
+
+        document.getElementById('projSelect1').addEventListener('change', (e) => {
+            setMapProjection(1, e.target.value, true);
+        });
+        document.getElementById('projSelect2').addEventListener('change', (e) => {
+            setMapProjection(2, e.target.value, true);
+        });
+
+        // Menú desplegable de preajustes globales en la barra superior
+        const globalProjBtn = document.getElementById('btnGlobalProjectionMenu');
+        const globalProjDropdown = document.getElementById('globalProjectionDropdown');
+
+        globalProjBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            globalProjDropdown.classList.toggle('hidden');
+        });
+
+        document.addEventListener('click', () => {
+            globalProjDropdown.classList.add('hidden');
+        });
+
+        document.querySelectorAll('.proj-option-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const preset = btn.dataset.preset;
+                if (preset === 'compare_real') {
+                    setMapProjection(1, 'mercator', true);
+                    setMapProjection(2, 'true_size', true);
+                    document.getElementById('globalProjectionLabel').textContent = 'Mercator vs Tamaño Real';
+                } else if (preset === 'both_real') {
+                    setMapProjection(1, 'true_size', true);
+                    setMapProjection(2, 'true_size', true);
+                    document.getElementById('globalProjectionLabel').textContent = 'Ambos: Tamaño Real';
+                } else if (preset === 'compare_gall') {
+                    setMapProjection(1, 'mercator', true);
+                    setMapProjection(2, 'gall_peters', true);
+                    document.getElementById('globalProjectionLabel').textContent = 'Mercator vs Gall-Peters';
+                } else if (preset === 'both_mercator') {
+                    setMapProjection(1, 'mercator', true);
+                    setMapProjection(2, 'mercator', true);
+                    document.getElementById('globalProjectionLabel').textContent = 'Ambos: Mercator';
+                }
+
+                document.querySelectorAll('.proj-option-btn').forEach(b => {
+                    b.classList.remove('bg-slate-800/60');
+                    b.querySelector('i').classList.add('hidden');
+                });
+                btn.classList.add('bg-slate-800/60');
+                btn.querySelector('i').classList.remove('hidden');
+                globalProjDropdown.classList.add('hidden');
+            });
+        });
+
+        // Botón rápido "Ver Groenlandia Real" para comprobar el tamaño real de Groenlandia al instante
+        document.getElementById('btnGreenlandDemo').addEventListener('click', () => {
+            const greenlandCenter = [71.7069, -42.6043];
+            state.baseZoom = 4.3;
+            state.map1Proj = 'mercator';
+            state.map2Proj = 'true_size';
+            document.getElementById('projSelect1').value = 'mercator';
+            document.getElementById('projSelect2').value = 'true_size';
+            document.getElementById('globalProjectionLabel').textContent = 'Mercator vs Tamaño Real';
+
+            state.isProgrammaticMove = true;
+            const z1 = computeEffectiveMapZoom(state.baseZoom, 'mercator', greenlandCenter[0]);
+            const z2 = computeEffectiveMapZoom(state.baseZoom, 'true_size', greenlandCenter[0]);
+
+            map1.setView(greenlandCenter, z1, { animate: true });
+            map2.setView(greenlandCenter, z2, { animate: true });
+
+            state.lastCenter1 = { lat: greenlandCenter[0], lng: greenlandCenter[1] };
+            state.lastCenter2 = { lat: greenlandCenter[0], lng: greenlandCenter[1] };
+
+            applyGallPetersAspectTransform(1);
+            applyGallPetersAspectTransform(2);
+            updateZoomBadge(state.baseZoom);
+            updateCoordsDisplay();
+            updateScaleBadges();
+
+            setTimeout(() => {
+                state.isProgrammaticMove = false;
+                syncOverlayMaps();
+            }, 300);
+
+            showToast('Groenlandia: Mercator (Izq.) vs Tamaño Real sin distorsión (Der.)');
+        });
+
+        /**************************************************************************
+         * SISTEMA DE ROTACIÓN DE VISTA Y ORIENTACIÓN DEL NORTE (BRÚJULA + RATÓN)
+         **************************************************************************/
+        function normalizeAngle(deg) {
+            return ((Math.round(deg) % 360) + 360) % 360;
+        }
+
+        function getCardinalDirection(deg) {
+            const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+            return dirs[Math.round(deg / 45) % 8];
+        }
+
+        function applyMapBearing(mapNum, angleDeg, broadcast = true, syncOther = true) {
+            const norm = normalizeAngle(angleDeg);
+            const targetMap = mapNum === 1 ? map1 : map2;
+            const otherMap = mapNum === 1 ? map2 : map1;
+            const otherNum = mapNum === 1 ? 2 : 1;
+
+            if (mapNum === 1) state.map1Bearing = norm;
+            else state.map2Bearing = norm;
+
+            if (typeof targetMap.setBearing === 'function') {
+                targetMap.setBearing(norm);
+            }
+
+            updateCompassUI(mapNum, norm);
+
+            if (syncOther && state.syncBearing) {
+                if (otherNum === 1) state.map1Bearing = norm;
+                else state.map2Bearing = norm;
+                if (typeof otherMap.setBearing === 'function') {
+                    otherMap.setBearing(norm);
+                }
+                updateCompassUI(otherNum, norm);
+            }
+
+            if (broadcast) {
+                syncChannel.postMessage({
+                    type: 'BEARING_CHANGE',
+                    mapNum,
+                    bearing: norm,
+                    syncBearing: state.syncBearing
+                });
+            }
+            syncOverlayMaps();
+        }
+
+        function updateCompassUI(mapNum, angleDeg) {
+            const norm = normalizeAngle(angleDeg);
+            const needle = document.getElementById(`compassNeedle${mapNum}`);
+            const label = document.getElementById(`bearingValue${mapNum}`);
+            const slider = document.getElementById(`bearingSlider${mapNum}`);
+
+            if (needle) needle.style.transform = `rotate(${norm}deg)`;
+            if (label) label.textContent = `${norm}° ${getCardinalDirection(norm)}`;
+            if (slider && document.activeElement !== slider) slider.value = norm;
+        }
+
+        function handleMapRotateEvent(mapNum) {
+            const targetMap = mapNum === 1 ? map1 : map2;
+            const otherMap = mapNum === 1 ? map2 : map1;
+            const otherNum = mapNum === 1 ? 2 : 1;
+
+            if (typeof targetMap.getBearing === 'function') {
+                const b = normalizeAngle(targetMap.getBearing());
+                if (mapNum === 1) state.map1Bearing = b;
+                else state.map2Bearing = b;
+                updateCompassUI(mapNum, b);
+
+                if (state.syncBearing && !state.isProgrammaticMove) {
+                    state.isProgrammaticMove = true;
+                    if (otherNum === 1) state.map1Bearing = b;
+                    else state.map2Bearing = b;
+                    if (typeof otherMap.setBearing === 'function') {
+                        otherMap.setBearing(b);
+                    }
+                    updateCompassUI(otherNum, b);
+                    state.isProgrammaticMove = false;
+                }
+            }
+        }
+
+        map1.on('rotate', () => handleMapRotateEvent(1));
+        map2.on('rotate', () => handleMapRotateEvent(2));
+
+        function enableRightClickDragRotation(mapInstance, mapNum) {
+            const container = mapInstance.getContainer();
+            let isRotatingDrag = false;
+            let startX = 0;
+            let startBearing = 0;
+
+            container.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            container.addEventListener('mousedown', (e) => {
+                if (e.button === 2 || (e.button === 0 && e.ctrlKey)) {
+                    isRotatingDrag = true;
+                    startX = e.clientX;
+                    startBearing = mapNum === 1 ? state.map1Bearing : state.map2Bearing;
+                    mapInstance.dragging.disable();
+                    e.preventDefault();
+                }
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isRotatingDrag) return;
+                const deltaX = e.clientX - startX;
+                const newBearing = startBearing + deltaX * 0.65;
+                applyMapBearing(mapNum, newBearing, true, true);
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (isRotatingDrag) {
+                    isRotatingDrag = false;
+                    mapInstance.dragging.enable();
+                }
+            });
+        }
+
+        enableRightClickDragRotation(map1, 1);
+        enableRightClickDragRotation(map2, 2);
+
+        [1, 2].forEach(num => {
+            document.getElementById(`btnResetNorth${num}`).addEventListener('click', () => {
+                applyMapBearing(num, 0, true, true);
+                showToast(`Mapa ${num}: Norte restablecido a 0°`);
+            });
+
+            document.getElementById(`btnToggleRotPanel${num}`).addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.getElementById(`rotPanel${num}`).classList.toggle('hidden');
+            });
+
+            document.getElementById(`bearingSlider${num}`).addEventListener('input', (e) => {
+                applyMapBearing(num, parseFloat(e.target.value), true, true);
+            });
+        });
+
+        document.querySelectorAll('.quick-rot-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mapNum = parseInt(btn.dataset.map, 10);
+                const angle = parseFloat(btn.dataset.angle);
+                applyMapBearing(mapNum, angle, true, true);
+            });
+        });
+
+        document.querySelectorAll('.delta-rot-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mapNum = parseInt(btn.dataset.map, 10);
+                const delta = parseFloat(btn.dataset.delta);
+                const current = mapNum === 1 ? state.map1Bearing : state.map2Bearing;
+                applyMapBearing(mapNum, current + delta, true, true);
+            });
+        });
+
+        /**************************************************************************
+         * BUSCADOR DE UBICACIONES INDEPENDIENTE (RESPETANDO ESCALA REAL)
+         **************************************************************************/
+        function parseCoordinatesQuery(query) {
+            const match = query.trim().match(/^(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)$/);
+            if (!match) return null;
+            const lat = parseFloat(match[1]);
+            const lng = parseFloat(match[2]);
+            if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                return { lat, lon: lng, display_name: `Coordenadas (${lat.toFixed(5)}, ${lng.toFixed(5)})` };
+            }
+            return null;
+        }
+
+        function createSearchPinIcon(mapNum) {
+            const colorClass = mapNum === 1
+                ? 'bg-blue-600 border-blue-200 shadow-blue-500/50'
+                : 'bg-emerald-600 border-emerald-200 shadow-emerald-500/50';
+            return L.divIcon({
+                className: 'custom-search-pin',
+                html: `<div class="w-7 h-7 -ml-3.5 -mt-7 rounded-full ${colorClass} border-2 shadow-lg flex items-center justify-center text-white text-xs animate-bounce">
+                        <i class="fa-solid fa-location-dot"></i>
+                       </div>`,
+                iconSize: [28, 28],
+                popupAnchor: [0, -28]
+            });
+        }
+
+        function selectSearchResult(mapNum, item, broadcast = true) {
+            const targetMap = mapNum === 1 ? map1 : map2;
+            const otherMap = mapNum === 1 ? map2 : map1;
+            const targetProj = mapNum === 1 ? state.map1Proj : state.map2Proj;
+            const otherProj = mapNum === 1 ? state.map2Proj : state.map1Proj;
+
+            const resultsBox = document.getElementById(`searchResults${mapNum}`);
+            const inputEl = document.getElementById(`searchInput${mapNum}`);
+            const clearBtn = document.getElementById(`btnClearSearch${mapNum}`);
+
+            const lat = parseFloat(item.lat);
+            const lng = parseFloat(item.lon !== undefined ? item.lon : item.lng);
+            if (isNaN(lat) || isNaN(lng)) return;
+
+            const label = item.display_name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+            const shortName = label.split(',')[0];
+
+            resultsBox.classList.add('hidden');
+            inputEl.value = shortName;
+            clearBtn.classList.remove('hidden');
+
+            let desiredBaseZoom = 14.5;
+            if (item.boundingbox && item.boundingbox.length === 4) {
+                const south = parseFloat(item.boundingbox[0]);
+                const north = parseFloat(item.boundingbox[1]);
+                const diff = Math.abs(north - south);
+                if (diff > 15) desiredBaseZoom = 4.5;
+                else if (diff > 5) desiredBaseZoom = 6;
+                else if (diff > 1.5) desiredBaseZoom = 8.5;
+                else if (diff > 0.4) desiredBaseZoom = 11.5;
+                else if (diff > 0.08) desiredBaseZoom = 13.5;
+                else desiredBaseZoom = 15.5;
+            }
+
+            state.baseZoom = desiredBaseZoom;
+            const effectiveTargetZoom = computeEffectiveMapZoom(state.baseZoom, targetProj, lat);
+
+            state.isProgrammaticMove = true;
+            targetMap.stop();
+            targetMap.setView([lat, lng], effectiveTargetZoom, { animate: false });
+
+            if (mapNum === 1) {
+                if (searchMarker1) map1.removeLayer(searchMarker1);
+                searchMarker1 = L.marker([lat, lng], { icon: createSearchPinIcon(1) })
+                    .addTo(map1)
+                    .bindPopup(`<div class="text-slate-900 text-xs font-medium"><strong>Mapa 1:</strong> ${label}</div>`)
+                    .openPopup();
+            } else {
+                if (searchMarker2) map2.removeLayer(searchMarker2);
+                searchMarker2 = L.marker([lat, lng], { icon: createSearchPinIcon(2) })
+                    .addTo(map2)
+                    .bindPopup(`<div class="text-slate-900 text-xs font-medium"><strong>Mapa 2:</strong> ${label}</div>`)
+                    .openPopup();
+            }
+
+            otherMap.stop();
+            if (state.syncZoom) {
+                const otherLat = otherMap.getCenter().lat;
+                const effectiveOtherZoom = computeEffectiveMapZoom(state.baseZoom, otherProj, otherLat);
+                otherMap.setZoom(effectiveOtherZoom, { animate: false });
+            }
+
+            state.lastCenter1 = { lat: map1.getCenter().lat, lng: map1.getCenter().lng };
+            state.lastCenter2 = { lat: map2.getCenter().lat, lng: map2.getCenter().lng };
+
+            applyGallPetersAspectTransform(1);
+            applyGallPetersAspectTransform(2);
+            updateZoomBadge(state.baseZoom);
+            updateCoordsDisplay();
+            updateScaleBadges();
+
+            setTimeout(() => {
+                state.isProgrammaticMove = false;
+                syncOverlayMaps();
+            }, 250);
+
+            if (broadcast) {
+                syncChannel.postMessage({
+                    type: 'SEARCH_RESULT_SELECTED',
+                    mapNum,
+                    item: { lat, lon: lng, display_name: label, boundingbox: item.boundingbox },
+                    baseZoom: state.baseZoom,
+                    syncZoom: state.syncZoom,
+                    syncPan: state.syncPan
+                });
+            }
+
+            showToast(`Mapa ${mapNum} → ${shortName}`);
+        }
+
+        function clearSearchMap(mapNum, broadcast = true) {
+            const inputEl = document.getElementById(`searchInput${mapNum}`);
+            const resultsBox = document.getElementById(`searchResults${mapNum}`);
+            const clearBtn = document.getElementById(`btnClearSearch${mapNum}`);
+
+            inputEl.value = '';
+            resultsBox.innerHTML = '';
+            resultsBox.classList.add('hidden');
+            clearBtn.classList.add('hidden');
+            state.lastSearchResults[mapNum] = [];
+
+            if (mapNum === 1 && searchMarker1) {
+                map1.removeLayer(searchMarker1);
+                searchMarker1 = null;
+            } else if (mapNum === 2 && searchMarker2) {
+                map2.removeLayer(searchMarker2);
+                searchMarker2 = null;
+            }
+
+            if (broadcast) {
+                syncChannel.postMessage({ type: 'SEARCH_CLEAR', mapNum });
+            }
+        }
+
+        async function performMapSearch(mapNum, autoNavigateFirst = false) {
+            const inputEl = document.getElementById(`searchInput${mapNum}`);
+            const resultsBox = document.getElementById(`searchResults${mapNum}`);
+            const iconEl = document.getElementById(`searchIcon${mapNum}`);
+            const clearBtn = document.getElementById(`btnClearSearch${mapNum}`);
+            const query = inputEl.value.trim();
+
+            if (!query) return;
+            clearBtn.classList.remove('hidden');
+
+            const directCoords = parseCoordinatesQuery(query);
+            if (directCoords) {
+                selectSearchResult(mapNum, directCoords, true);
+                return;
+            }
+
+            iconEl.className = 'fa-solid fa-spinner fa-spin';
+            try {
+                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=6&accept-language=es`;
+                const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                const results = await response.json();
+
+                resultsBox.innerHTML = '';
+                state.lastSearchResults[mapNum] = Array.isArray(results) ? results : [];
+
+                if (!Array.isArray(results) || results.length === 0) {
+                    resultsBox.innerHTML = `
+                        <div class="px-3 py-2.5 text-xs text-slate-400 flex items-center gap-2">
+                            <i class="fa-solid fa-circle-exclamation text-amber-400"></i>
+                            <span>No se encontraron resultados para "${query}"</span>
+                        </div>`;
+                    resultsBox.classList.remove('hidden');
+                    return;
+                }
+
+                if (autoNavigateFirst) {
+                    selectSearchResult(mapNum, results[0], true);
+                    return;
+                }
+
+                results.forEach((item) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'w-full text-left px-3 py-2 hover:bg-slate-800/90 transition flex items-start gap-2.5 group';
+                    const parts = item.display_name.split(',');
+                    const title = parts[0];
+                    const subtitle = parts.slice(1, 4).join(',').trim();
+
+                    btn.innerHTML = `
+                        <i class="fa-solid fa-location-dot mt-1 text-xs ${mapNum === 1 ? 'text-blue-400' : 'text-emerald-400'} group-hover:scale-110 transition"></i>
+                        <div class="min-w-0 flex-1">
+                            <div class="text-xs font-semibold text-slate-100 truncate">${title}</div>
+                            <div class="text-[11px] text-slate-400 truncate">${subtitle || item.display_name}</div>
+                        </div>
+                        <span class="text-[10px] font-mono text-slate-500 group-hover:text-slate-300 self-center">Ir &rarr;</span>
+                    `;
+
+                    btn.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        selectSearchResult(mapNum, item, true);
+                    });
+
+                    resultsBox.appendChild(btn);
+                });
+
+                resultsBox.classList.remove('hidden');
+            } catch (err) {
+                showToast('Error al buscar la ubicación.');
+            } finally {
+                iconEl.className = 'fa-solid fa-magnifying-glass';
+            }
+        }
+
+        [1, 2].forEach(mapNum => {
+            const form = document.getElementById(`searchForm${mapNum}`);
+            const input = document.getElementById(`searchInput${mapNum}`);
+            const clearBtn = document.getElementById(`btnClearSearch${mapNum}`);
+            const resultsBox = document.getElementById(`searchResults${mapNum}`);
+            let debounceTimer = null;
+
+            L.DomEvent.disableClickPropagation(form);
+            L.DomEvent.disableClickPropagation(resultsBox);
+            L.DomEvent.disableScrollPropagation(resultsBox);
+
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                clearTimeout(debounceTimer);
+                if (!resultsBox.classList.contains('hidden') && state.lastSearchResults[mapNum].length > 0) {
+                    selectSearchResult(mapNum, state.lastSearchResults[mapNum][0], true);
+                } else {
+                    performMapSearch(mapNum, true);
+                }
+            });
+
+            input.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                const val = input.value.trim();
+                if (val.length > 0) {
+                    clearBtn.classList.remove('hidden');
+                    if (val.length >= 3) {
+                        debounceTimer = setTimeout(() => performMapSearch(mapNum, false), 350);
+                    }
+                } else {
+                    clearBtn.classList.add('hidden');
+                    resultsBox.classList.add('hidden');
+                }
+            });
+
+            clearBtn.addEventListener('click', () => clearSearchMap(mapNum, true));
+        });
+
+        document.addEventListener('click', (e) => {
+            [1, 2].forEach(num => {
+                const form = document.getElementById(`searchForm${num}`);
+                const resultsBox = document.getElementById(`searchResults${num}`);
+                if (!form.contains(e.target) && !resultsBox.contains(e.target)) {
+                    resultsBox.classList.add('hidden');
+                }
+            });
+        });
+
+        /**************************************************************************
+         * GESTIÓN DE CAPAS DE GOOGLE MAPS
+         **************************************************************************/
+        function setMapLayer(mapNumber, layerType, broadcast = true) {
+            if (mapNumber === 1) {
+                state.map1LayerType = layerType;
+                map1.removeLayer(activeTileLayer1);
+                activeTileLayer1 = createGoogleTileLayer(layerType).addTo(map1);
+                overlayMap1.removeLayer(overlayTileLayer1);
+                overlayTileLayer1 = createGoogleTileLayer(layerType).addTo(overlayMap1);
+                updateLayerButtonsUI(1, layerType);
+            } else {
+                state.map2LayerType = layerType;
+                map2.removeLayer(activeTileLayer2);
+                activeTileLayer2 = createGoogleTileLayer(layerType).addTo(map2);
+                overlayMap2.removeLayer(overlayTileLayer2);
+                overlayTileLayer2 = createGoogleTileLayer(layerType).addTo(overlayMap2);
+                updateLayerButtonsUI(2, layerType);
+            }
+
+            if (broadcast) {
+                syncChannel.postMessage({ type: 'LAYER_CHANGE', mapNumber, layerType });
+            }
+            syncOverlayMaps();
+        }
+
+        function updateLayerButtonsUI(mapNumber, activeLayer) {
+            const buttons = document.querySelectorAll(`.layer-btn-${mapNumber}`);
+            const activeColorClass = mapNumber === 1 ? 'bg-blue-600' : 'bg-emerald-600';
+
+            buttons.forEach(btn => {
+                const isTarget = btn.getAttribute('data-layer') === activeLayer;
+                btn.classList.remove('bg-blue-600', 'bg-emerald-600', 'text-white', 'shadow', 'text-slate-400');
+                if (isTarget) btn.classList.add(activeColorClass, 'text-white', 'shadow');
+                else btn.classList.add('text-slate-400');
+            });
+        }
+
+        document.querySelectorAll('.layer-btn-1').forEach(btn => {
+            btn.addEventListener('click', () => setMapLayer(1, btn.dataset.layer));
+        });
+        document.querySelectorAll('.layer-btn-2').forEach(btn => {
+            btn.addEventListener('click', () => setMapLayer(2, btn.dataset.layer));
+        });
+
+        /**************************************************************************
+         * SINCRONIZACIÓN INTELIGENTE DE ZOOM (CON COMPENSACIÓN COS LAT) Y PAN RELATIVO
+         **************************************************************************/
+        function updateZoomBadge(zoomVal) {
+            document.getElementById('zoomLevelDisplay').textContent = Number(zoomVal).toFixed(1);
+        }
+
+        function updateCoordsDisplay() {
+            const c1 = map1.getCenter();
+            const c2 = map2.getCenter();
+            document.getElementById('coordsMap1').textContent = `${c1.lat.toFixed(4)}, ${c1.lng.toFixed(4)}`;
+            document.getElementById('coordsMap2').textContent = `${c2.lat.toFixed(4)}, ${c2.lng.toFixed(4)}`;
+        }
+
+        function handleMapSync(sourceMap, targetMap, sourceId) {
+            updateCoordsDisplay();
+            updateScaleBadges();
+
+            if (!state.isProgrammaticMove) {
+                state.isProgrammaticMove = true;
+                const isSource1 = sourceId === 'map1';
+                const sourceNum = isSource1 ? 1 : 2;
+                const targetNum = isSource1 ? 2 : 1;
+                const sourceProj = isSource1 ? state.map1Proj : state.map2Proj;
+                const targetProj = isSource1 ? state.map2Proj : state.map1Proj;
+
+                const sCenter = sourceMap.getCenter();
+                const sZoom = sourceMap.getZoom();
+                const prevCenter = isSource1 ? state.lastCenter1 : state.lastCenter2;
+
+                const dLat = sCenter.lat - prevCenter.lat;
+                const dLng = sCenter.lng - prevCenter.lng;
+
+                state.baseZoom = computeBaseZoomFromEffective(sZoom, sourceProj, sCenter.lat);
+                updateZoomBadge(state.baseZoom);
+                applyGallPetersAspectTransform(sourceNum);
+
+                if (isSource1) {
+                    state.lastCenter1 = { lat: sCenter.lat, lng: sCenter.lng };
+                } else {
+                    state.lastCenter2 = { lat: sCenter.lat, lng: sCenter.lng };
+                }
+
+                const tCenter = targetMap.getCenter();
+                const hasDelta = Math.abs(dLat) > 1e-9 || Math.abs(dLng) > 1e-9;
+                const nextLat = (state.syncPan && hasDelta)
+                    ? Math.max(-84, Math.min(84, tCenter.lat + dLat))
+                    : tCenter.lat;
+                const nextLng = (state.syncPan && hasDelta)
+                    ? tCenter.lng + dLng
+                    : tCenter.lng;
+
+                const nextTargetZoom = state.syncZoom
+                    ? computeEffectiveMapZoom(state.baseZoom, targetProj, nextLat)
+                    : targetMap.getZoom();
+
+                if (state.syncZoom || (state.syncPan && hasDelta)) {
+                    targetMap.setView([nextLat, nextLng], nextTargetZoom, { animate: false });
+                } else if (sourceProj === 'true_size' || sourceProj === 'gall_peters') {
+                    const adjustedSourceZoom = computeEffectiveMapZoom(state.baseZoom, sourceProj, sCenter.lat);
+                    if (Math.abs(adjustedSourceZoom - sZoom) > 0.002) {
+                        sourceMap.setZoom(adjustedSourceZoom, { animate: false });
+                    }
+                }
+
+                applyGallPetersAspectTransform(targetNum);
+
+                const updatedTargetCenter = targetMap.getCenter();
+                if (targetNum === 1) {
+                    state.lastCenter1 = { lat: updatedTargetCenter.lat, lng: updatedTargetCenter.lng };
+                } else {
+                    state.lastCenter2 = { lat: updatedTargetCenter.lat, lng: updatedTargetCenter.lng };
+                }
+
+                syncChannel.postMessage({
+                    type: 'MAP_VIEW_CHANGE',
+                    baseZoom: state.baseZoom,
+                    dLat: state.syncPan ? dLat : 0,
+                    dLng: state.syncPan ? dLng : 0,
+                    syncZoom: state.syncZoom,
+                    syncPan: state.syncPan
+                });
+            }
+
+            syncOverlayMaps();
+
+            requestAnimationFrame(() => {
+                state.isProgrammaticMove = false;
+            });
+        }
+
+        map1.on('zoom move', () => handleMapSync(map1, map2, 'map1'));
+        map2.on('zoom move', () => handleMapSync(map2, map1, 'map2'));
+
+        /**************************************************************************
+         * MEDIDOR DE DISTANCIA INDEPENDIENTE POR MAPA
+         **************************************************************************/
+        function formatDistance(meters) {
+            if (meters >= 1000) {
+                return { primary: `${(meters / 1000).toFixed(2)} km`, secondary: `(${Math.round(meters).toLocaleString('es-ES')} m)` };
+            }
+            return { primary: `${meters.toFixed(1)} m`, secondary: `(${(meters / 1000).toFixed(3)} km)` };
+        }
+
+        function createMarkerIcon(index, isLast, mapNum) {
+            const accent = mapNum === 1 ? 'bg-blue-500' : 'bg-emerald-500';
+            const bgColor = index === 0 ? accent : (isLast ? 'bg-rose-500 measure-dot-pulse' : 'bg-rose-500');
+            return L.divIcon({
+                className: 'custom-measure-point',
+                html: `<div class="relative w-6 h-6 -ml-1.5 -mt-1.5 rounded-full ${bgColor} border-2 border-white shadow-lg flex items-center justify-center text-[10px] font-mono font-bold text-white">${index + 1}</div>`,
+                iconSize: [12, 12]
+            });
+        }
+
+        function renderMeasurementsForMap(mapNum) {
+            const targetLayerGroup = mapNum === 1 ? measureLayerGroup1 : measureLayerGroup2;
+            const referenceMap = mapNum === 1 ? map1 : map2;
+            const pts = mapNum === 1 ? state.measurePoints1 : state.measurePoints2;
+            const lineColor = mapNum === 1 ? '#38bdf8' : '#34d399';
+
+            targetLayerGroup.clearLayers();
+            if (pts.length === 0) return;
+
+            const latLngs = pts.map(p => [p.lat, p.lng]);
+
+            if (pts.length > 1) {
+                L.polyline(latLngs, { color: '#0f172a', weight: 6, opacity: 0.75 }).addTo(targetLayerGroup);
+                L.polyline(latLngs, { color: lineColor, weight: 3.5, dashArray: '8, 6', opacity: 1 }).addTo(targetLayerGroup);
+
+                for (let i = 1; i < pts.length; i++) {
+                    const p1 = L.latLng(pts[i - 1].lat, pts[i - 1].lng);
+                    const p2 = L.latLng(pts[i].lat, pts[i].lng);
+                    const segDist = referenceMap.distance(p1, p2);
+                    const midLat = (p1.lat + p2.lat) / 2;
+                    const midLng = (p1.lng + p2.lng) / 2;
+
+                    const labelText = segDist >= 1000 ? `${(segDist / 1000).toFixed(2)} km` : `${Math.round(segDist)} m`;
+
+                    L.tooltip({ permanent: true, direction: 'center', className: 'segment-tooltip' })
+                        .setLatLng([midLat, midLng])
+                        .setContent(labelText)
+                        .addTo(targetLayerGroup);
+                }
+            }
+
+            pts.forEach((pt, idx) => {
+                L.marker([pt.lat, pt.lng], { icon: createMarkerIcon(idx, idx === pts.length - 1, mapNum), interactive: false }).addTo(targetLayerGroup);
+            });
+        }
+
+        function updateMeasurementUI() {
+            [1, 2].forEach(mapNum => {
+                renderMeasurementsForMap(mapNum);
+                const pts = mapNum === 1 ? state.measurePoints1 : state.measurePoints2;
+                const refMap = mapNum === 1 ? map1 : map2;
+
+                let totalMeters = 0;
+                for (let i = 1; i < pts.length; i++) {
+                    totalMeters += refMap.distance([pts[i - 1].lat, pts[i - 1].lng], [pts[i].lat, pts[i].lng]);
+                }
+
+                const formatted = formatDistance(totalMeters);
+                document.getElementById(`distPrimary${mapNum}`).textContent = formatted.primary;
+                document.getElementById(`distSecondary${mapNum}`).textContent = formatted.secondary;
+                document.getElementById(`measureCount${mapNum}`).textContent = `(${pts.length} ${pts.length === 1 ? 'pt' : 'pts'})`;
+                document.getElementById(`btnUndoMeasure${mapNum}`).disabled = pts.length === 0;
+
+                const card = document.getElementById(`measureCard${mapNum}`);
+                const localBadge = document.getElementById(`localMeasureBadge${mapNum}`);
+                if (state.isMeasuring || pts.length > 0) {
+                    card.classList.remove('hidden');
+                } else {
+                    card.classList.add('hidden');
+                }
+
+                localBadge.textContent = pts.length > 0 ? formatted.primary : 'Medir';
+            });
+
+            const totalPts = state.measurePoints1.length + state.measurePoints2.length;
+            const globalBadge = document.getElementById('badgeMeasurePoints');
+            if (totalPts > 0) {
+                globalBadge.textContent = totalPts;
+                globalBadge.classList.remove('hidden');
+            } else {
+                globalBadge.classList.add('hidden');
+            }
+        }
+
+        function addMeasurementPoint(mapNum, latlng, broadcast = true) {
+            if (mapNum === 1) state.measurePoints1.push({ lat: latlng.lat, lng: latlng.lng });
+            else state.measurePoints2.push({ lat: latlng.lat, lng: latlng.lng });
+
+            updateMeasurementUI();
+            if (broadcast) {
+                syncChannel.postMessage({
+                    type: 'MEASURE_UPDATE',
+                    points1: state.measurePoints1,
+                    points2: state.measurePoints2,
+                    isMeasuring: state.isMeasuring
+                });
+            }
+        }
+
+        function clearMapMeasurement(mapNum, broadcast = true) {
+            if (mapNum === 1) state.measurePoints1 = [];
+            else state.measurePoints2 = [];
+
+            updateMeasurementUI();
+            if (broadcast) {
+                syncChannel.postMessage({
+                    type: 'MEASURE_UPDATE',
+                    points1: state.measurePoints1,
+                    points2: state.measurePoints2,
+                    isMeasuring: state.isMeasuring
+                });
+            }
+        }
+
+        function clearAllMeasurements(broadcast = true) {
+            state.measurePoints1 = [];
+            state.measurePoints2 = [];
+            updateMeasurementUI();
+            if (broadcast) {
+                syncChannel.postMessage({
+                    type: 'MEASURE_UPDATE',
+                    points1: [],
+                    points2: [],
+                    isMeasuring: state.isMeasuring
+                });
+            }
+        }
+
+        function toggleMeasureMode(forceState, broadcast = true) {
+            state.isMeasuring = typeof forceState === 'boolean' ? forceState : !state.isMeasuring;
+            const btn = document.getElementById('btnMeasureMode');
+            const banner = document.getElementById('measurementBanner');
+            const container = document.getElementById('mapsGridContainer');
+
+            if (state.isMeasuring) {
+                btn.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-rose-600 border-rose-500 text-white shadow-md shadow-rose-600/30';
+                banner.classList.remove('hidden');
+                container.classList.add('measuring-cursor');
+                showToast('Medición independiente activa en Mapa 1 y Mapa 2');
+            } else {
+                btn.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-slate-800/90 border-slate-700 text-slate-200 hover:border-rose-500/50';
+                banner.classList.add('hidden');
+                container.classList.remove('measuring-cursor');
+            }
+
+            updateMeasurementUI();
+
+            if (broadcast) {
+                syncChannel.postMessage({ type: 'MEASURE_MODE_TOGGLE', isMeasuring: state.isMeasuring });
+            }
+        }
+
+        map1.on('click', (e) => { if (state.isMeasuring) addMeasurementPoint(1, e.latlng, true); });
+        map2.on('click', (e) => { if (state.isMeasuring) addMeasurementPoint(2, e.latlng, true); });
+
+        [1, 2].forEach(num => {
+            const card = document.getElementById(`measureCard${num}`);
+            L.DomEvent.disableClickPropagation(card);
+
+            document.getElementById(`btnLocalMeasure${num}`).addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleMeasureMode(true);
+            });
+
+            document.getElementById(`btnUndoMeasure${num}`).addEventListener('click', () => {
+                if (num === 1) state.measurePoints1.pop();
+                else state.measurePoints2.pop();
+                updateMeasurementUI();
+                syncChannel.postMessage({
+                    type: 'MEASURE_UPDATE',
+                    points1: state.measurePoints1,
+                    points2: state.measurePoints2,
+                    isMeasuring: state.isMeasuring
+                });
+            });
+
+            document.getElementById(`btnClearMeasure${num}`).addEventListener('click', () => {
+                clearMapMeasurement(num, true);
+            });
+        });
+
+        /**************************************************************************
+         * CONTROLES DE INTERFAZ, MODO LIMPIO Y VENTANA EMERGENTE
+         **************************************************************************/
+        function showToast(message) {
+            const toast = document.getElementById('toastNotification');
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.remove('opacity-0', 'translate-y-2');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', 'translate-y-2');
+            }, 2800);
+        }
+
+        function updateSyncButtonsUI() {
+            const btnZoom = document.getElementById('btnSyncZoom');
+            const dotZoom = document.getElementById('dotSyncZoom');
+            const btnPan = document.getElementById('btnSyncPan');
+            const dotPan = document.getElementById('dotSyncPan');
+            const btnBearing = document.getElementById('btnSyncBearing');
+            const dotBearing = document.getElementById('dotSyncBearing');
+
+            if (state.syncZoom) {
+                btnZoom.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-blue-600/20 border-blue-500/50 text-blue-300 shadow-sm';
+                dotZoom.className = 'w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]';
+            } else {
+                btnZoom.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-slate-800/90 border-slate-700 text-slate-400';
+                dotZoom.className = 'w-2 h-2 rounded-full bg-slate-600';
+            }
+
+            if (state.syncPan) {
+                btnPan.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-indigo-600/20 border-indigo-500/50 text-indigo-300 shadow-sm';
+                dotPan.className = 'w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]';
+            } else {
+                btnPan.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-slate-800/90 border-slate-700 text-slate-300 hover:bg-slate-750';
+                dotPan.className = 'w-2 h-2 rounded-full bg-slate-600';
+            }
+
+            if (state.syncBearing) {
+                btnBearing.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-sm';
+                dotBearing.className = 'w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]';
+            } else {
+                btnBearing.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold transition-all border bg-slate-800/90 border-slate-700 text-slate-300 hover:bg-slate-750';
+                dotBearing.className = 'w-2 h-2 rounded-full bg-slate-600';
+            }
+        }
+
+        document.getElementById('btnSyncZoom').addEventListener('click', () => {
+            state.syncZoom = !state.syncZoom;
+            updateSyncButtonsUI();
+            if (state.syncZoom) {
+                state.isProgrammaticMove = true;
+                const z2 = computeEffectiveMapZoom(state.baseZoom, state.map2Proj, map2.getCenter().lat);
+                map2.setZoom(z2, { animate: true });
+                setTimeout(() => { state.isProgrammaticMove = false; }, 200);
+                showToast('Zoom sincronizado activado');
+            } else {
+                showToast('Zoom sincronizado desactivado');
+            }
+            syncChannel.postMessage({ type: 'SYNC_SETTINGS', syncZoom: state.syncZoom, syncPan: state.syncPan, syncBearing: state.syncBearing });
+        });
+
+        document.getElementById('btnSyncPan').addEventListener('click', () => {
+            state.syncPan = !state.syncPan;
+            state.lastCenter1 = { lat: map1.getCenter().lat, lng: map1.getCenter().lng };
+            state.lastCenter2 = { lat: map2.getCenter().lat, lng: map2.getCenter().lng };
+            updateSyncButtonsUI();
+            showToast(state.syncPan ? 'Posición sincronizada activa (desplazamiento relativo)' : 'Posición independiente');
+            syncChannel.postMessage({ type: 'SYNC_SETTINGS', syncZoom: state.syncZoom, syncPan: state.syncPan, syncBearing: state.syncBearing });
+        });
+
+        document.getElementById('btnSyncBearing').addEventListener('click', () => {
+            state.syncBearing = !state.syncBearing;
+            updateSyncButtonsUI();
+            if (state.syncBearing) applyMapBearing(2, state.map1Bearing, true, false);
+            showToast(state.syncBearing ? 'Giro sincronizado' : 'Giro independiente');
+            syncChannel.postMessage({ type: 'SYNC_SETTINGS', syncZoom: state.syncZoom, syncPan: state.syncPan, syncBearing: state.syncBearing });
+        });
+
+        document.getElementById('btnAlignNow').addEventListener('click', () => {
+            state.isProgrammaticMove = true;
+            const c1 = map1.getCenter();
+            const z2 = computeEffectiveMapZoom(state.baseZoom, state.map2Proj, c1.lat);
+            map2.setView(c1, z2, { animate: true });
+            applyMapBearing(2, state.map1Bearing, false, false);
+            applyGallPetersAspectTransform(2);
+            state.lastCenter1 = { lat: c1.lat, lng: c1.lng };
+            state.lastCenter2 = { lat: c1.lat, lng: c1.lng };
+            updateCoordsDisplay();
+            updateScaleBadges();
+            setTimeout(() => { state.isProgrammaticMove = false; }, 250);
+            syncChannel.postMessage({ type: 'FORCE_ALIGN', center: c1, baseZoom: state.baseZoom, bearing: state.map1Bearing });
+            showToast('Posición de ambos mapas igualada');
+        });
+
+        function setMapCleanMode(mapNum, isClean) {
+            state.cleanMode[mapNum] = isClean;
+            const panel = document.getElementById(`panelMap${mapNum}`);
+            const topOverlay = document.getElementById(`uiTopOverlay${mapNum}`);
+            const compassOverlay = document.getElementById(`uiCompassOverlay${mapNum}`);
+            const coordsOverlay = document.getElementById(`uiCoordsOverlay${mapNum}`);
+            const iconBtn = document.getElementById(`iconCleanMap${mapNum}`);
+            const btnClean = document.getElementById(`btnCleanMap${mapNum}`);
+
+            if (isClean) {
+                panel.classList.add('map-ui-hidden');
+                topOverlay.classList.add('hidden');
+                compassOverlay.classList.add('hidden');
+                coordsOverlay.classList.add('sm:hidden', 'hidden');
+                iconBtn.className = 'fa-solid fa-eye text-xs text-amber-400';
+                btnClean.classList.add('opacity-60', 'hover:opacity-100');
+            } else {
+                panel.classList.remove('map-ui-hidden');
+                topOverlay.classList.remove('hidden');
+                compassOverlay.classList.remove('hidden');
+                coordsOverlay.classList.remove('sm:hidden', 'hidden');
+                coordsOverlay.classList.add('hidden', 'sm:flex');
+                iconBtn.className = `fa-solid fa-eye-slash text-xs ${mapNum === 1 ? 'text-blue-400' : 'text-emerald-400'}`;
+                btnClean.classList.remove('opacity-60', 'hover:opacity-100');
+            }
+        }
+
+        document.getElementById('btnCleanMap1').addEventListener('click', () => setMapCleanMode(1, !state.cleanMode[1]));
+        document.getElementById('btnCleanMap2').addEventListener('click', () => setMapCleanMode(2, !state.cleanMode[2]));
+        document.getElementById('btnToggleAllCleanMode').addEventListener('click', () => {
+            const targetClean = !(state.cleanMode[1] && state.cleanMode[2]);
+            setMapCleanMode(1, targetClean);
+            setMapCleanMode(2, targetClean);
+        });
+
+        function applySplitDirection(direction) {
+            state.splitDirection = direction;
+            const container = document.getElementById('mapsGridContainer');
+            const panel1 = document.getElementById('panelMap1');
+            const icon = document.getElementById('iconSplitLayout');
+            const text = document.getElementById('textSplitLayout');
+
+            if (direction === 'horizontal') {
+                container.classList.remove('flex-row');
+                container.classList.add('flex-col');
+                panel1.classList.remove('border-r');
+                panel1.classList.add('border-b');
+                icon.className = 'fa-solid fa-bars text-cyan-400';
+                text.textContent = 'Arriba / Abajo';
+            } else {
+                container.classList.remove('flex-col');
+                container.classList.add('flex-row');
+                panel1.classList.remove('border-b');
+                panel1.classList.add('border-r');
+                icon.className = 'fa-solid fa-table-columns text-cyan-400';
+                text.textContent = 'Lado a Lado';
+            }
+
+            setTimeout(() => { map1.invalidateSize(); map2.invalidateSize(); }, 180);
+        }
+
+        document.getElementById('btnToggleSplitLayout').addEventListener('click', () => {
+            applySplitDirection(state.splitDirection === 'vertical' ? 'horizontal' : 'vertical');
+        });
+
+        document.getElementById('btnResetCenter').addEventListener('click', () => {
+            state.baseZoom = INITIAL_ZOOM;
+            state.isProgrammaticMove = true;
+            const z1 = computeEffectiveMapZoom(state.baseZoom, state.map1Proj, INITIAL_CENTER[0]);
+            const z2 = computeEffectiveMapZoom(state.baseZoom, state.map2Proj, INITIAL_CENTER[0]);
+            map1.setView(INITIAL_CENTER, z1, { animate: true });
+            map2.setView(INITIAL_CENTER, z2, { animate: true });
+            state.lastCenter1 = { lat: INITIAL_CENTER[0], lng: INITIAL_CENTER[1] };
+            state.lastCenter2 = { lat: INITIAL_CENTER[0], lng: INITIAL_CENTER[1] };
+            applyGallPetersAspectTransform(1);
+            applyGallPetersAspectTransform(2);
+            updateZoomBadge(state.baseZoom);
+            updateCoordsDisplay();
+            updateScaleBadges();
+            setTimeout(() => { state.isProgrammaticMove = false; }, 250);
+            syncChannel.postMessage({ type: 'FORCE_ALIGN', center: { lat: INITIAL_CENTER[0], lng: INITIAL_CENTER[1] }, baseZoom: INITIAL_ZOOM });
+            showToast('Centrado en Madrid / Leganés');
+        });
+
+        document.getElementById('btnMeasureMode').addEventListener('click', () => toggleMeasureMode());
+        document.getElementById('btnCloseMeasureDock').addEventListener('click', () => toggleMeasureMode(false));
+        document.getElementById('btnClearAllMeasures').addEventListener('click', () => clearAllMeasurements(true));
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && state.isMeasuring) toggleMeasureMode(false);
+        });
+
+        function applySingleMapLayout(whichMap) {
+            const p1 = document.getElementById('panelMap1');
+            const p2 = document.getElementById('panelMap2');
+            if (whichMap === 1) { p1.classList.remove('hidden'); p2.classList.add('hidden'); }
+            else if (whichMap === 2) { p1.classList.add('hidden'); p2.classList.remove('hidden'); }
+            else { p1.classList.remove('hidden'); p2.classList.remove('hidden'); }
+            setTimeout(() => { map1.invalidateSize(); map2.invalidateSize(); }, 150);
+        }
+
+        if (urlParams.get('role') === 'popup_map2') {
+            document.title = 'Mapa 2 (Ventana Sincronizada) - Comparamapas';
+            document.getElementById('windowRoleBadge').classList.remove('hidden');
+            document.getElementById('btnPopupWindow').classList.add('hidden');
+            applySingleMapLayout(2);
+            syncChannel.postMessage({ type: 'POPUP_OPENED' });
+            window.addEventListener('beforeunload', () => syncChannel.postMessage({ type: 'POPUP_CLOSED' }));
+        }
+
+        document.getElementById('btnPopupWindow').addEventListener('click', () => {
+            if (state.externalPopupRef && !state.externalPopupRef.closed) {
+                state.externalPopupRef.close();
+                state.externalPopupRef = null;
+                applySingleMapLayout('both');
+                document.getElementById('popupBtnText').textContent = '2ª Ventana';
+                return;
+            }
+
+            const popupUrl = new URL(window.location.href);
+            popupUrl.searchParams.set('role', 'popup_map2');
+            const width = Math.min(900, window.screen.availWidth * 0.48);
+            const height = Math.min(780, window.screen.availHeight * 0.85);
+            const popup = window.open(popupUrl.toString(), 'ComparamapasMap2Window', `width=${Math.round(width)},height=${Math.round(height)},resizable=yes`);
+            if (popup) {
+                state.externalPopupRef = popup;
+                applySingleMapLayout(1);
+                document.getElementById('popupBtnText').textContent = 'Unir Ventanas';
+                showToast('Mapa 2 abierto en 2ª ventana');
+            }
+        });
+
+        syncChannel.onmessage = (event) => {
+            const data = event.data;
+            if (!data || !data.type) return;
+
+            switch (data.type) {
+                case 'POPUP_OPENED':
+                    syncChannel.postMessage({
+                        type: 'INIT_STATE',
+                        center: map1.getCenter(),
+                        baseZoom: state.baseZoom,
+                        syncZoom: state.syncZoom,
+                        syncPan: state.syncPan,
+                        map1LayerType: state.map1LayerType,
+                        map2LayerType: state.map2LayerType,
+                        map1Proj: state.map1Proj,
+                        map2Proj: state.map2Proj,
+                        measurePoints1: state.measurePoints1,
+                        measurePoints2: state.measurePoints2,
+                        isMeasuring: state.isMeasuring
+                    });
+                    break;
+                case 'POPUP_CLOSED':
+                    state.externalPopupRef = null;
+                    applySingleMapLayout('both');
+                    document.getElementById('popupBtnText').textContent = '2ª Ventana';
+                    break;
+                case 'INIT_STATE':
+                    state.syncZoom = data.syncZoom;
+                    state.syncPan = data.syncPan;
+                    state.baseZoom = data.baseZoom || INITIAL_ZOOM;
+                    updateSyncButtonsUI();
+                    if (data.map1Proj) setMapProjection(1, data.map1Proj, false);
+                    if (data.map2Proj) setMapProjection(2, data.map2Proj, false);
+                    setMapLayer(1, data.map1LayerType, false);
+                    setMapLayer(2, data.map2LayerType, false);
+                    state.isProgrammaticMove = true;
+                    map1.setView(data.center, computeEffectiveMapZoom(state.baseZoom, state.map1Proj, data.center.lat), { animate: false });
+                    map2.setView(data.center, computeEffectiveMapZoom(state.baseZoom, state.map2Proj, data.center.lat), { animate: false });
+                    state.isProgrammaticMove = false;
+                    state.measurePoints1 = data.measurePoints1 || [];
+                    state.measurePoints2 = data.measurePoints2 || [];
+                    updateMeasurementUI();
+                    if (data.isMeasuring) toggleMeasureMode(true, false);
+                    break;
+                case 'PROJECTION_CHANGE':
+                    setMapProjection(data.mapNum, data.projKey, false);
+                    break;
+                case 'MAP_VIEW_CHANGE':
+                    state.isProgrammaticMove = true;
+                    state.baseZoom = data.baseZoom || state.baseZoom;
+                    [map1, map2].forEach((m, idx) => {
+                        const mapNum = idx + 1;
+                        const proj = mapNum === 1 ? state.map1Proj : state.map2Proj;
+                        const c = m.getCenter();
+                        const nextLat = Math.max(-84, Math.min(84, c.lat + (data.dLat || 0)));
+                        const nextLng = c.lng + (data.dLng || 0);
+                        const hasDelta = Math.abs(data.dLat || 0) > 1e-9 || Math.abs(data.dLng || 0) > 1e-9;
+
+                        const finalLat = (data.syncPan && hasDelta) ? nextLat : c.lat;
+                        const finalLng = (data.syncPan && hasDelta) ? nextLng : c.lng;
+                        const effZoom = data.syncZoom ? computeEffectiveMapZoom(state.baseZoom, proj, finalLat) : m.getZoom();
+
+                        if (data.syncZoom || (data.syncPan && hasDelta)) {
+                            m.setView([finalLat, finalLng], effZoom, { animate: false });
+                        }
+                        applyGallPetersAspectTransform(mapNum);
+
+                        const updated = m.getCenter();
+                        if (idx === 0) state.lastCenter1 = { lat: updated.lat, lng: updated.lng };
+                        else state.lastCenter2 = { lat: updated.lat, lng: updated.lng };
+                    });
+                    updateZoomBadge(state.baseZoom);
+                    updateCoordsDisplay();
+                    updateScaleBadges();
+                    requestAnimationFrame(() => { state.isProgrammaticMove = false; });
+                    break;
+                case 'FORCE_ALIGN':
+                    state.isProgrammaticMove = true;
+                    state.baseZoom = data.baseZoom || state.baseZoom;
+                    map1.setView(data.center, computeEffectiveMapZoom(state.baseZoom, state.map1Proj, data.center.lat), { animate: true });
+                    map2.setView(data.center, computeEffectiveMapZoom(state.baseZoom, state.map2Proj, data.center.lat), { animate: true });
+                    state.lastCenter1 = { lat: data.center.lat, lng: data.center.lng };
+                    state.lastCenter2 = { lat: data.center.lat, lng: data.center.lng };
+                    setTimeout(() => { state.isProgrammaticMove = false; }, 250);
+                    break;
+                case 'SYNC_SETTINGS':
+                    state.syncZoom = data.syncZoom;
+                    state.syncPan = data.syncPan;
+                    if (typeof data.syncBearing === 'boolean') state.syncBearing = data.syncBearing;
+                    updateSyncButtonsUI();
+                    break;
+                case 'BEARING_CHANGE':
+                    applyMapBearing(data.mapNum, data.bearing, false, data.syncBearing);
+                    break;
+                case 'LAYER_CHANGE':
+                    setMapLayer(data.mapNumber, data.layerType, false);
+                    break;
+                case 'MEASURE_MODE_TOGGLE':
+                    toggleMeasureMode(data.isMeasuring, false);
+                    break;
+                case 'MEASURE_UPDATE':
+                    state.measurePoints1 = data.points1 || [];
+                    state.measurePoints2 = data.points2 || [];
+                    updateMeasurementUI();
+                    break;
+                case 'SEARCH_RESULT_SELECTED':
+                    selectSearchResult(data.mapNum, data.item, false);
+                    break;
+                case 'SEARCH_CLEAR':
+                    clearSearchMap(data.mapNum, false);
+                    break;
+            }
+        };
+
+        window.addEventListener('resize', () => {
+            map1.invalidateSize();
+            map2.invalidateSize();
+            if (state.overlayActive) {
+                overlayMap1.invalidateSize();
+                overlayMap2.invalidateSize();
+                syncOverlayMaps();
+            }
+        });
+    </script>
 </body>
 </html>
