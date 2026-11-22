@@ -1,0 +1,11 @@
+{
+  "appId": "com.javi.miappweb",
+  "appName": "Mi App Web",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}
