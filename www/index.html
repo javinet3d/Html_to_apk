@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Mi App Web Android</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #12161f;
+      color: #f0f4f8;
+      margin: 0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+      text-align: center;
+    }
+    .card {
+      background: #1c2230;
+      border-radius: 16px;
+      padding: 24px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    }
+    h1 { font-size: 1.4rem; margin-top: 0; color: #60a5fa; }
+    p { font-size: 0.95rem; color: #cbd5e1; line-height: 1.5; }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+    }
+    button:active { background: #1d4ed8; }
+    #status { margin-top: 14px; font-size: 0.85rem; color: #34d399; word-break: break-word; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>App Lista en Android</h1>
+    <p>Sustituye este archivo <code>www/index.html</code> por tu propia aplicación HTML de archivo único.</p>
+    <button onclick="testMic()">Probar Permiso de Micrófono</button>
+    <button onclick="testDownload()">Probar Descarga de Archivo (.txt)</button>
+    <div id="status"></div>
+  </div>
+  <script>
+    async function testMic() {
+      const st = document.getElementById('status');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => t.stop());
+        st.textContent = "Micrófono autorizado y funcionando.";
+      } catch (e) {
+        st.textContent = "Error micrófono: " + e.message;
+      }
+    }
+
+    function testDownload() {
+      const blob = new Blob(["Prueba de exportación desde APK"], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "prueba_android.txt";
+      a.click();
+      document.getElementById('status').textContent = "Descarga iniciada en carpeta Descargas.";
+    }
+  </script>
+</body>
+</html>
